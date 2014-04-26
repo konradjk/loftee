@@ -126,15 +126,16 @@ sub small_intron {
 sub intron_motif_start {
     my ($transcript_variation, $intron_number) = @_;
     print "Checking start motif\n" if $ddebug;
-    my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};
     
+    my $transcript = $transcript_variation->transcript;
+    my @gene_introns = @{$transcript->get_all_Introns()};
     my $sequence;
-    if (exists($transcript_variation->{intron_cache}->{$intron_number})) {
+    if (exists($transcript->{intron_cache}->{$intron_number})) {
         print "Got cache!\n" if $debug;
-        $sequence = $transcript_variation->{intron_cache}->{$intron_number};
+        $sequence = $transcript->{intron_cache}->{$intron_number};
     } else {
         $sequence = $gene_introns[$intron_number]->seq;
-        $transcript_variation->{intron_cache}->{$intron_number} = $sequence;
+        $transcript->{intron_cache}->{$intron_number} = $sequence;
     }
     if (substr($sequence, 0, 2) ne 'GT') {
         print "\nIssue with " . $transcript_variation->variation_feature->variation_name . " in " . $transcript_variation->transcript->display_id . "\n";
@@ -147,15 +148,16 @@ sub intron_motif_start {
 sub intron_motif_end {
     my ($transcript_variation, $intron_number) = @_;
     print "Checking end motif\n" if $ddebug;
-    my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};
-
+    
+    my $transcript = $transcript_variation->transcript;
+    my @gene_introns = @{$transcript->get_all_Introns()};
     my $sequence;
-    if (exists($transcript_variation->{intron_cache}->{$intron_number})) {
+    if (exists($transcript->{intron_cache}->{$intron_number})) {
         print "Got cache!\n" if $debug;
-        $sequence = $transcript_variation->{intron_cache}->{$intron_number};
+        $sequence = $transcript->{intron_cache}->{$intron_number};
     } else {
         $sequence = $gene_introns[$intron_number]->seq;
-        $transcript_variation->{intron_cache}->{$intron_number} = $sequence;
+        $transcript->{intron_cache}->{$intron_number} = $sequence;
     }
     print "Got end motif: Intron " . $intron_number . " (length: " . length($sequence) . ")\n" if $ddebug;
     return (substr($sequence, length($sequence) - 2, 2) ne 'AG')
