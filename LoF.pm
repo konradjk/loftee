@@ -47,7 +47,7 @@ sub new {
     my $class = shift;
 
     my $self = $class->SUPER::new(@_);
-    $self->{has_cache} = 1;
+    #$self->{has_cache} = 1;
     
     foreach my $parameter (@{$self->params}) {
         my @param = split /:/, $parameter;
