@@ -16,7 +16,7 @@
 =head1 DESCRIPTION
 
  A VEP plugin that overlays GTEx data on transcripts.
- Requires DBD::SQLite.
+ Requires DBD::SQLite (>=1.4.2).
 
 =cut
 

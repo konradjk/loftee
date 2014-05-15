@@ -16,7 +16,7 @@
 
 =head1 DESCRIPTION
 
- A VEP plugin that determines loss-of-function variation.
+ A VEP plugin that filters loss-of-function variation.
 
 =cut
 
@@ -58,6 +58,7 @@ sub new {
     
     $self->{filter_position} = $self->{filter_position} || 0.05;
     $self->{min_intron_size} = $self->{min_intron_size} || 15;
+    $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
     
     if ($debug) {
         print "Read parameters\n";
@@ -76,29 +77,38 @@ sub run {
     
     my @consequences = map { $_->SO_term } @{ $transcript_variation_allele->get_all_OverlapConsequences };
     
+    # Filter in
+    unless ($transcript_variation->transcript->biotype eq "protein_coding") {
+        return {};
+    }
+    unless ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
+        return {};
+    }
+    
     my $confidence = 'HC';
     my @filters = ();
     
-    # Filter in
-    unless ($transcript_variation->transcript->biotype eq "protein_coding") {
-        return {}
-    }
-    unless ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
-        return {}
-    }
-    
     # Filter out
     if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
-        push(@filters, 'EXON_INTRON_UNDEF') if (check_for_exon_annotation_errors($transcript_variation));
-        push(@filters, 'SINGLE_EXON') if (check_for_single_exon($transcript_variation));
-        push(@filters, 'END_TRUNC') if (check_position($transcript_variation, $self->{filter_position}));
-        push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
+        push(@filters, 'END_TRUNC') if (check_position($transcript_variation, $self->{filter_position}, $self->{fast_length_calculation}));
+        if (check_for_exon_annotation_errors($transcript_variation)) {
+            push(@filters, 'EXON_INTRON_UNDEF');
+        } elsif (check_for_single_exon($transcript_variation)) {
+            push(@filters, 'SINGLE_EXON');
+        } else {
+            #push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
+            push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
+        }
     }
 
     if ("splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences) {
-        push(@filters, 'EXON_INTRON_UNDEF') if (check_for_intron_annotation_errors($transcript_variation));
-        push(@filters, 'SMALL_INTRON') if (check_intron_size($transcript_variation, $self->{min_intron_size}));
-        push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
+        if (check_for_intron_annotation_errors($transcript_variation)) {
+            push(@filters, 'EXON_INTRON_UNDEF');
+        } else {
+            push(@filters, 'SMALL_INTRON') if (check_intron_size($transcript_variation, $self->{min_intron_size}));
+            push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
+            push(@filters, 'NAGNAG_SITE') if (check_nagnag_variant($variation_feature));
+        }
     }
     
     push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele));
@@ -116,6 +126,11 @@ sub small_intron {
     my $intron_number = shift;
     my $min_intron_size = shift;
     my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};
+    unless(defined($gene_introns[$intron_number])) {
+        print "Issue with " . $transcript_variation->transcript->display_id . ": intron " . $intron_number . "\n";
+        print $transcript_variation->intron_number . "\n";
+    }
+    
     if ($gene_introns[$intron_number]->length < $min_intron_size) {
         print "Small intron (" . $intron_number . ")\n" if $debug;
     }
@@ -131,7 +146,7 @@ sub intron_motif_start {
     my @gene_introns = @{$transcript->get_all_Introns()};
     my $sequence;
     if (exists($transcript->{intron_cache}->{$intron_number})) {
-        print "Got cache!\n" if $debug;
+        print "Got intron cache!\n" if $ddebug;
         $sequence = $transcript->{intron_cache}->{$intron_number};
     } else {
         $sequence = $gene_introns[$intron_number]->seq;
@@ -153,7 +168,7 @@ sub intron_motif_end {
     my @gene_introns = @{$transcript->get_all_Introns()};
     my $sequence;
     if (exists($transcript->{intron_cache}->{$intron_number})) {
-        print "Got cache!\n" if $debug;
+        print "Got intron cache!\n" if $ddebug;
         $sequence = $transcript->{intron_cache}->{$intron_number};
     } else {
         $sequence = $gene_introns[$intron_number]->seq;
@@ -163,28 +178,66 @@ sub intron_motif_end {
     return (substr($sequence, length($sequence) - 2, 2) ne 'AG')
 }
 
-sub get_cds_length {
-    my $transcript_variation = shift;
+sub get_cds_length_fast {
+    my $transcript = shift;
     
-    my $transcript_cds_length = $transcript_variation->transcript->cdna_coding_end - $transcript_variation->transcript->cdna_coding_start + 1;
+    my $transcript_cds_length = $transcript->cdna_coding_end - $transcript->cdna_coding_start + 1;
     
-    print ('Tx (' . $transcript_variation->transcript->display_id . ') length is: ' . ($transcript_variation->transcript->cdna_coding_end - $transcript_variation->transcript->cdna_coding_start + 1) . "\n") if $ddebug;
-    print "CDS length (" . $transcript_cds_length . ") not multiple of 3 (" . $transcript_variation->transcript->display_id . ")\n" if ($debug && $transcript_cds_length % 3);
+    print ('Tx (' . $transcript->display_id . ') length is: ' . ($transcript_cds_length) . "\n") if $ddebug;
+    print "CDS length (" . $transcript_cds_length . ") not multiple of 3 (" . $transcript->display_id . ")\n" if ($debug && $transcript_cds_length % 3);
     
     return $transcript_cds_length;
 }
 
+sub get_cds_length {
+    my $transcript = shift;
+    
+    my $transcript_cds_length;
+    if (exists($transcript->{seq_cache})) {
+        print "Got seq cache\n" if $ddebug;
+        $transcript_cds_length = length($transcript->{seq_cache});
+    } else {
+        my $seq = $transcript->translateable_seq;
+        $transcript_cds_length = length($seq);
+        $transcript->{seq_cache} = $seq;
+    }
+    return $transcript_cds_length;
+}
+
 # Stop-gain and frameshift annotations
+sub check_incomplete_cds {
+    my $transcript_variation = shift;
+    
+    my $transcript = $transcript_variation->transcript;
+    my $start_annotation = $transcript->get_all_Attributes('cds_start_NF');
+    my $end_annotation = $transcript->get_all_Attributes('cds_end_NF');
+    if (defined($start_annotation)) {
+        foreach my $annot (@{$start_annotation}) {
+            print "Start annotation: " . $annot->code . "\n";
+        }
+    }
+    if (defined($end_annotation)) {
+        foreach my $annot (@{$end_annotation}) {
+            print "End annotation: " . $annot->code .  "\n";
+        }
+    }
+    return (defined($start_annotation) || defined($end_annotation));
+}
+
 sub check_for_exon_annotation_errors {
     my $transcript_variation = shift;
     return (!defined($transcript_variation->exon_number))
 }
 
 sub check_position {
-    my ($transcript_variation, $cutoff) = @_;
+    my ($transcript_variation, $cutoff, $speed) = @_;
     
-    my $transcript_cds_length = get_cds_length($transcript_variation);
-    #my $variant_cds_position = $transcript_variation->cdna_start;
+    my $transcript_cds_length;
+    if ($speed eq 'fast') {
+        $transcript_cds_length = get_cds_length_fast($transcript_variation->transcript);
+    } else {
+        $transcript_cds_length = get_cds_length($transcript_variation->transcript);
+    }
     my $variant_cds_position = $transcript_variation->cdna_end;
     
     print $transcript_variation->transcript->stable_id . ": " . $variant_cds_position . " out of " . $transcript_cds_length . "\n" if $ddebug;
@@ -219,6 +272,20 @@ sub check_surrounding_introns {
 }
 
 # Splicing annotations
+sub check_nagnag_variant {
+    my $variation_feature = shift;
+    
+    my $seq;
+    if (exists($variation_feature->{splice_context_seq_cache})) {
+        print "Got splice context seq cache\n" if $ddebug;
+        $seq = $variation_feature->{splice_context_seq_cache};
+    } else {
+        $seq = uc($variation_feature->feature_Slice->expand(4, 4)->seq);
+        print "Got splice context seq: " . $seq . "\n" if $ddebug;
+        $variation_feature->{splice_context_seq_cache} = $seq;
+    }
+    return (length($seq) == 9 && $seq =~ m/AG.AG/);
+}
 sub check_for_intron_annotation_errors {
     my $transcript_variation = shift;
     return (!defined($transcript_variation->intron_number))
@@ -263,7 +330,7 @@ sub check_for_ancestral_allele_var_api {
     my $aff_allele = $transcript_variation_allele->variation_feature_seq;
     print "Allele is " . $aff_allele . "\n" if $ddebug;
     
-    # This doesn't seem to work for some reason
+    # This doesn't seem to work
     my $ancestral_allele = $variation_feature->variation->ancestral_allele;
     
     print $variation_feature->variation_name . "; Allele is: " . $aff_allele . "; Ancestral allele is: " . $ancestral_allele . "\n" if $ddebug;
@@ -276,36 +343,5 @@ sub check_for_ancestral_allele {
     return check_for_ancestral_allele_faidx($transcript_variation_allele)
 }
 
-#sub check_for_ancestral_allele_api {
-#    my $variation_feature = shift;
-#
-#    my $reg = "Bio::EnsEMBL::Registry";
-#    
-#    my $mlss_adaptor = $reg->get_adaptor("Multi", "compara", "MethodLinkSpeciesSet") or die "Failed to connect to compara database\n";
-#    my $mlss = $mlss_adaptor->fetch_by_method_link_type_species_set_name("EPO", "primates");
-#    my $aln_adaptor = $reg->get_adaptor('Multi', 'compara', 'GenomicAlignBlock') or die "Failed to fetch conservation adaptor\n";
-#    
-#    my $species = "Homo sapiens";
-#    my $chr = '1';
-#    my $start = 879431;
-#    my $end = 879431;
-#    #my $chr = $variation_feature->seq_region_name();
-#    #my $start = $variation_feature->seq_region_start();
-#    #my $end = $variation_feature->seq_region_end();
-#    
-#    my $query_slice_adaptor = Bio::EnsEMBL::Registry->get_adaptor($species, "core", "Slice");
-#    my $query_slice = $query_slice_adaptor->fetch_by_region("chromosome", $chr, $start, $end);
-#    
-#    my $genomic_align_blocks = $aln_adaptor->fetch_all_by_MethodLinkSpeciesSet_Slice($mlss, $query_slice);
-#    
-#    my $all_aligns;
-#    
-#    foreach my $this_genomic_align_block (@$genomic_align_blocks) {
-#        my $simple_align = $this_genomic_align_block->get_SimpleAlign;
-#        print $simple_align;
-#    }
-#    
-#    return 0;
-#}
 
 1;
