@@ -25,8 +25,7 @@ package LoF;
 use strict;
 use warnings;
 
-our $debug = 1;
-our $ddebug = 0;
+our $debug = 0;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
 
@@ -47,7 +46,6 @@ sub new {
     my $class = shift;
 
     my $self = $class->SUPER::new(@_);
-    #$self->{has_cache} = 1;
     
     foreach my $parameter (@{$self->params}) {
         my @param = split /:/, $parameter;
@@ -61,7 +59,7 @@ sub new {
     $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
     
     if ($debug) {
-        print "Read parameters\n";
+        print "Read LOFTEE parameters\n";
         while (my ($key, $value) = each(%$self)) {
             print $key . " : " . $value . "\n";
         }
@@ -126,55 +124,37 @@ sub small_intron {
     my $intron_number = shift;
     my $min_intron_size = shift;
     my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};
-    unless(defined($gene_introns[$intron_number])) {
-        print "Issue with " . $transcript_variation->transcript->display_id . ": intron " . $intron_number . "\n";
-        print $transcript_variation->intron_number . "\n";
-    }
     
-    if ($gene_introns[$intron_number]->length < $min_intron_size) {
-        print "Small intron (" . $intron_number . ")\n" if $debug;
-    }
-    #print "Got length: " . $gene_introns[$intron_number]->length . "\n" if $ddebug;
     return ($gene_introns[$intron_number]->length < $min_intron_size);
 }
 
 sub intron_motif_start {
     my ($transcript_variation, $intron_number) = @_;
-    print "Checking start motif\n" if $ddebug;
     
     my $transcript = $transcript_variation->transcript;
     my @gene_introns = @{$transcript->get_all_Introns()};
-    my $sequence;
-    if (exists($transcript->{intron_cache}->{$intron_number})) {
-        print "Got intron cache!\n" if $ddebug;
-        $sequence = $transcript->{intron_cache}->{$intron_number};
-    } else {
-        $sequence = $gene_introns[$intron_number]->seq;
-        $transcript->{intron_cache}->{$intron_number} = $sequence;
+    
+    # Cache intron sequence
+    unless (exists($transcript->{intron_cache}->{$intron_number})) {
+        $transcript->{intron_cache}->{$intron_number} = $gene_introns[$intron_number]->seq;
     }
-    if (substr($sequence, 0, 2) ne 'GT') {
-        print "\nIssue with " . $transcript_variation->variation_feature->variation_name . " in " . $transcript_variation->transcript->display_id . "\n";
-        print "Intron " . $intron_number . " (length: " . length($sequence) . "), seq is: " . $sequence . "\n";
-    }
-    print "Got start motif: Intron " . $intron_number . " (length: " . length($sequence) . ")\n" if $ddebug;
+    my $sequence = $transcript->{intron_cache}->{$intron_number};
+    
     return (substr($sequence, 0, 2) ne 'GT');
 }
 
 sub intron_motif_end {
     my ($transcript_variation, $intron_number) = @_;
-    print "Checking end motif\n" if $ddebug;
     
     my $transcript = $transcript_variation->transcript;
     my @gene_introns = @{$transcript->get_all_Introns()};
-    my $sequence;
-    if (exists($transcript->{intron_cache}->{$intron_number})) {
-        print "Got intron cache!\n" if $ddebug;
-        $sequence = $transcript->{intron_cache}->{$intron_number};
-    } else {
-        $sequence = $gene_introns[$intron_number]->seq;
-        $transcript->{intron_cache}->{$intron_number} = $sequence;
+    
+    # Cache intron sequence
+    unless (exists($transcript->{intron_cache}->{$intron_number})) {
+        $transcript->{intron_cache}->{$intron_number} = $gene_introns[$intron_number]->seq;
     }
-    print "Got end motif: Intron " . $intron_number . " (length: " . length($sequence) . ")\n" if $ddebug;
+    my $sequence = $transcript->{intron_cache}->{$intron_number};
+    
     return (substr($sequence, length($sequence) - 2, 2) ne 'AG')
 }
 
@@ -182,25 +162,17 @@ sub get_cds_length_fast {
     my $transcript = shift;
     
     my $transcript_cds_length = $transcript->cdna_coding_end - $transcript->cdna_coding_start + 1;
-    
-    print ('Tx (' . $transcript->display_id . ') length is: ' . ($transcript_cds_length) . "\n") if $ddebug;
-    print "CDS length (" . $transcript_cds_length . ") not multiple of 3 (" . $transcript->display_id . ")\n" if ($debug && $transcript_cds_length % 3);
-    
     return $transcript_cds_length;
 }
 
 sub get_cds_length {
     my $transcript = shift;
     
-    my $transcript_cds_length;
-    if (exists($transcript->{seq_cache})) {
-        print "Got seq cache\n" if $ddebug;
-        $transcript_cds_length = length($transcript->{seq_cache});
-    } else {
-        my $seq = $transcript->translateable_seq;
-        $transcript_cds_length = length($seq);
-        $transcript->{seq_cache} = $seq;
+    # Cache CDS sequence
+    unless (exists($transcript->{cds_seq_cache})) {
+        $transcript->{cds_seq_cache} = $transcript->translateable_seq;
     }
+    my $transcript_cds_length = length($transcript->{cds_seq_cache});
     return $transcript_cds_length;
 }
 
@@ -211,16 +183,7 @@ sub check_incomplete_cds {
     my $transcript = $transcript_variation->transcript;
     my $start_annotation = $transcript->get_all_Attributes('cds_start_NF');
     my $end_annotation = $transcript->get_all_Attributes('cds_end_NF');
-    if (defined($start_annotation)) {
-        foreach my $annot (@{$start_annotation}) {
-            print "Start annotation: " . $annot->code . "\n";
-        }
-    }
-    if (defined($end_annotation)) {
-        foreach my $annot (@{$end_annotation}) {
-            print "End annotation: " . $annot->code .  "\n";
-        }
-    }
+    
     return (defined($start_annotation) || defined($end_annotation));
 }
 
@@ -232,6 +195,7 @@ sub check_for_exon_annotation_errors {
 sub check_position {
     my ($transcript_variation, $cutoff, $speed) = @_;
     
+    # 2 ways to get length: fast and approximate, or slow and accurate
     my $transcript_cds_length;
     if ($speed eq 'fast') {
         $transcript_cds_length = get_cds_length_fast($transcript_variation->transcript);
@@ -240,7 +204,6 @@ sub check_position {
     }
     my $variant_cds_position = $transcript_variation->cdna_end;
     
-    print $transcript_variation->transcript->stable_id . ": " . $variant_cds_position . " out of " . $transcript_cds_length . "\n" if $ddebug;
     return ($variant_cds_position/$transcript_cds_length >= 1-$cutoff);
 }
 
@@ -256,7 +219,8 @@ sub check_surrounding_introns {
     my ($exon_number, $total_exons) = split /\//, ($transcript_variation->exon_number);
     $exon_number--;
     
-    print "Checking exon " . $exon_number . " (out of " . ($total_exons - 1) . " exons) \n" if $ddebug;
+    # Check for small introns and GT..AG motif
+    # Only next intron if in first exon, only previous intron if in last exon, otherwise both previous and next
     if ($exon_number == 0) {
         return (small_intron($transcript_variation, $exon_number, $min_intron_size) ||
                intron_motif_start($transcript_variation, $exon_number))
@@ -275,16 +239,14 @@ sub check_surrounding_introns {
 sub check_nagnag_variant {
     my $variation_feature = shift;
     
-    my $seq;
-    if (exists($variation_feature->{splice_context_seq_cache})) {
-        print "Got splice context seq cache\n" if $ddebug;
-        $seq = $variation_feature->{splice_context_seq_cache};
-    } else {
-        $seq = uc($variation_feature->feature_Slice->expand(4, 4)->seq);
-        print "Got splice context seq: " . $seq . "\n" if $ddebug;
-        $variation_feature->{splice_context_seq_cache} = $seq;
+    # Cache splice sites
+    unless (exists($variation_feature->{splice_context_seq_cache})) {
+        $variation_feature->{splice_context_seq_cache} = uc($variation_feature->feature_Slice->expand(4, 4)->seq);
     }
-    return (length($seq) == 9 && $seq =~ m/AG.AG/);
+    my $sequence = $variation_feature->{splice_context_seq_cache};
+    
+    # Only consider NAGNAG sites for SNPs for now
+    return (length($sequence) == 9 && $sequence =~ m/AG.AG/);
 }
 sub check_for_intron_annotation_errors {
     my $transcript_variation = shift;
@@ -309,31 +271,14 @@ sub check_for_non_canonical_intron_motif {
 sub check_for_ancestral_allele_faidx {
     my $transcript_variation_allele = shift;
     my $variation_feature = $transcript_variation_allele->variation_feature;
-    
     my $aff_allele = $transcript_variation_allele->variation_feature_seq;
-    print "Allele is " . $aff_allele . "\n" if $ddebug;
     
+    # Get ancestral allele from human_ancestor.fa.rz
     my $region = $variation_feature->seq_region_name() . ":" . $variation_feature->seq_region_start() . '-' . $variation_feature->seq_region_end();
     my $faidx = `samtools faidx human_ancestor.fa.rz $region`;
     my @lines = split(/\n/, $faidx);
     shift @lines;
     my $ancestral_allele = uc(join('', @lines));
-    print $variation_feature->variation_name . "; Allele is: " . $aff_allele . "; Ancestral allele is: " . $ancestral_allele . "\n" if $ddebug;
-    
-    return ($ancestral_allele eq $aff_allele)
-}
-
-sub check_for_ancestral_allele_var_api {
-    my $transcript_variation_allele = shift;
-    my $variation_feature = $transcript_variation_allele->variation_feature;
-    
-    my $aff_allele = $transcript_variation_allele->variation_feature_seq;
-    print "Allele is " . $aff_allele . "\n" if $ddebug;
-    
-    # This doesn't seem to work
-    my $ancestral_allele = $variation_feature->variation->ancestral_allele;
-    
-    print $variation_feature->variation_name . "; Allele is: " . $aff_allele . "; Ancestral allele is: " . $ancestral_allele . "\n" if $ddebug;
     
     return ($ancestral_allele eq $aff_allele)
 }
