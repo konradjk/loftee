@@ -12,19 +12,19 @@ Currently assesses variants that are:
 
 For stop-gained and frameshift variants, LOFTEE removes:
 
--   Variants that are in the last X% of the transcript (default = 5%)
+-   Variants that are in the last X% of the transcript (filter_position; default = 5%)
 -   Variants in genes with only a single exon
 -   Variants that land in an exon with non-canonical splice sites around it (i.e. intron does not start with GT and end with AG)
 
 For splice-site variants, LOFTEE removes:
 
--   Variants in small introns (default = 15 bp
+-   Variants in small introns (min_intron_size; default = 15 bp)
 -   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
 -   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
 
 For all variants, LOFTEE removes:
 
--   Variants where the variant is the ancestral state (shared with chimps)
+-   Variants where the purported LoF allele is the ancestral state (across primates)
 
 ## Requirements
 
