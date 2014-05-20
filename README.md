@@ -54,3 +54,109 @@ Minimum intron size, below which a variant should be filtered.
 -   `fast_length_calculation`
 
 The Ensembl API can be used to calculate transcript length in two different methods: one approximate (fast; usually within 3 bp of correct length) and one perfect (slow). Default: fast.
+
+## Output
+
+The output is the standard VEP output, or standard VEP VCF if `--vcf` is passed to VEP.
+For those unfamiliar with VEP's VCF output, the annotations are written to the CSQ attribute of the INFO field.
+Here, a comma-separated list of consequences, corresponding to each transcript-(alternate)allele pair, is written with each entry as a pipe-delimited set of annotations.
+With more alleles and transcripts (and especially with the `--everything` flag), this will inevitably make for some very long INFO fields that are difficult to parse by eye.
+See `read_vep_vcf.py` for a parsing script.
+
+In other words, a VCF line may look like:
+
+<pre>
+1       1178848 rs115005664     G       A       1000.0   PASS   AC=1;AF=0.5;AN=1;CSQ=A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1||,A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1||,A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1||,A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1||HC,A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1||`
+</pre>
+
+This is comprehensive, but the crucial information is in the `CSQ=` part, so here we have the line split up by allele-transcript pair:
+
+<pre>
+A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1||,
+A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1||,
+A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1||,
+A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1||HC,
+A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1||
+</pre>
+
+The key to parsing this section is in the header line written by VEP.
+
+<pre>
+##INFO=&lt;ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_filter|LoF"&gt;
+</pre>
+
+This line contains the corresponding mappings to these fields after `Format:`:
+
+<pre>
+Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_filter|LoF
+</pre>
+
+In Python, this line can be read with:
+
+<pre>
+vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
+</pre>
+
+The INFO field can then be read with:
+<pre>fields = vcf_line.split('\t')
+info_field = dict([(x.split('=', 1)) for x in re.split(';(?=\w)', fields[7]) if x.find('=') > -1])
+annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ'].split(',')]
+</pre>
+
+(Note that this requires `import re` due to VEP introducing semi-colons into the INFO field in some scenarios)
+
+`annotations` is now a list of dictionaries like so:
+
+<pre>
+[{'Allele': 'A',
+  'Amino_acids': '',
+  'CDS_position': '',
+  'Codons': '',
+  'Consequence': 'non_coding_exon_variant&nc_transcript_variant',
+  'DISTANCE': '',
+  'Existing_variation': '',
+  'Feature': 'ENST00000468365',
+  'Feature_type': 'Transcript',
+  'Gene': 'ENSG00000184163',
+  'LoF': '',
+  'LoF_filter': '',
+  'Protein_position': '',
+  'STRAND': '-1',
+  'cDNA_position': '445'},
+  ...
+  {'Allele': 'A',
+  'Amino_acids': 'Q/*',
+  'CDS_position': '616',
+  'Codons': 'Cag/Tag',
+  'Consequence': 'stop_gained',
+  'DISTANCE': '',
+  'Existing_variation': '',
+  'Feature': 'ENST00000330388',
+  'Feature_type': 'Transcript',
+  'Gene': 'ENSG00000184163',
+  'LoF': 'HC',
+  'LoF_filter': '',
+  'Protein_position': '206',
+  'STRAND': '-1',
+  'cDNA_position': '648'}, ...]
+</pre>
+
+LoF annotations can be extracted as:
+
+<pre>
+lof_annotations = [x for x in annotations if x['LoF'] == 'HC']
+</pre>
+
+`HC` refers to high-confidence LoF variants (i.e. does not fail any filters). `LC` denotes low-confidence, failing at least one filter, which are written to the `LoF_filter` field.
+
+Possible values for the `LoF_filter` field are:
+
+- END_TRUNC
+- EXON\_INTRON\_UNDEF
+- SINGLE_EXON
+- NON\_CAN\_SPLICE\_SURR
+- EXON\_INTRON_UNDEF
+- SMALL_INTRON
+- NON\_CAN_SPLICE
+- NAGNAG_SITE
+- ANC_ALLELE
