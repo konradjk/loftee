@@ -10,26 +10,41 @@ Currently assesses variants that are:
 -   Splice site disrupting
 -   Frameshift variants
 
+### Filters
+
+LOFTEE implements a set of filters to deem a LoF as "low-confidence."
+
 For stop-gained and frameshift variants, LOFTEE removes:
 
 -   Variants that are in the last X% of the transcript (filter_position; default = 5%)
--   Variants in genes with only a single exon
 -   Variants that land in an exon with non-canonical splice sites around it (i.e. intron does not start with GT and end with AG)
 
 For splice-site variants, LOFTEE removes:
 
 -   Variants in small introns (min_intron_size; default = 15 bp)
 -   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
--   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
 
 For all variants, LOFTEE removes:
 
 -   Variants where the purported LoF allele is the ancestral state (across primates)
 
+### Flags
+
+LOFTEE implements a series of flags based on some variant parameters.
+
+For stop-gained and frameshift variants, LOFTEE flags:
+
+-   Variants in genes with only a single exon
+
+For splice-site variants, LOFTEE flags:
+
+-   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
+
 ## Requirements
 
 -   VEP
 -   Ancestral sequence (human_ancestor.fa.rz)
+-   Samtools (must be on path)
 
 ## Usage
 
@@ -55,6 +70,10 @@ Minimum intron size, below which a variant should be filtered.
 
 The Ensembl API can be used to calculate transcript length in two different methods: one approximate (fast; usually within 3 bp of correct length) and one perfect (slow). Default: fast.
 
+-   `human_ancestor_fa`
+
+Location of human_ancestor.fa file (need associated tabix index file)
+
 ## Output
 
 The output is the standard VEP output, or standard VEP VCF if `--vcf` is passed to VEP.
@@ -66,29 +85,29 @@ See `read_vep_vcf.py` for a parsing script.
 In other words, a VCF line may look like:
 
 <pre>
-1       1178848 rs115005664     G       A       1000.0   PASS   AC=1;AF=0.5;AN=1;CSQ=A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1||,A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1||,A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1||,A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1||HC,A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1||`
+1       1178848 rs115005664     G       A       1000.0   PASS   AC=1;AF=0.5;AN=2;CSQ=A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1|||,A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1|||,A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1|||,A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1|||HC,A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1|||`
 </pre>
 
 This is comprehensive, but the crucial information is in the `CSQ=` part, so here we have the line split up by allele-transcript pair:
 
 <pre>
-A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1||,
-A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1||,
-A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1||,
-A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1||HC,
-A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1||
+A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1|||,
+A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1|||,
+A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1|||,
+A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1|||HC,
+A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1|||
 </pre>
 
 The key to parsing this section is in the header line written by VEP.
 
 <pre>
-##INFO=&lt;ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_filter|LoF"&gt;
+##INFO=&lt;ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_flags|LoF_filter|LoF"&gt;
 </pre>
 
 This line contains the corresponding mappings to these fields after `Format:`:
 
 <pre>
-Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_filter|LoF
+Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_flags|LoF_filter|LoF
 </pre>
 
 In Python, this line can be read with:
@@ -120,6 +139,7 @@ annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ
   'Gene': 'ENSG00000184163',
   'LoF': '',
   'LoF_filter': '',
+  'LoF_flags': '',
   'Protein_position': '',
   'STRAND': '-1',
   'cDNA_position': '445'},
@@ -136,6 +156,7 @@ annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ
   'Gene': 'ENSG00000184163',
   'LoF': 'HC',
   'LoF_filter': '',
+  'LoF_flags': '',
   'Protein_position': '206',
   'STRAND': '-1',
   'cDNA_position': '648'}, ...]
@@ -153,10 +174,13 @@ Possible values for the `LoF_filter` field are:
 
 - END_TRUNC
 - EXON\_INTRON\_UNDEF
-- SINGLE_EXON
 - NON\_CAN\_SPLICE\_SURR
 - EXON\_INTRON_UNDEF
 - SMALL_INTRON
 - NON\_CAN_SPLICE
-- NAGNAG_SITE
 - ANC_ALLELE
+
+Possible values for the `Lof_flags` field are:
+
+- SINGLE_EXON
+- NAGNAG_SITE

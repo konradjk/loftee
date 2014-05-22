@@ -49,8 +49,17 @@ sub new {
     my $self = $class->SUPER::new(@_);
     
     #$self->{has_cache} = 1;
-    $self->{expressed_cutoff} = $self->params->[0] || 1;
-    $self->{database} = DBI->connect("dbi:SQLite:dbname=gtex.db", "", "") or die "Cannot find gtex.db\n";
+    
+    foreach my $parameter (@{$self->params}) {
+        my @param = split /:/, $parameter;
+        if (scalar @param == 2) {
+            $self->{$param[0]} = $param[1];
+        }
+    }
+    
+    $self->{db_location} = $self->{db_location} || 'gtex.db';
+    $self->{expressed_cutoff} = $self->{expressed_cutoff} || 1;
+    $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
     
     return $self;
 }

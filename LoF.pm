@@ -33,8 +33,9 @@ use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
 
 sub get_header_info {
     return {
-        LoF => "Loss-of-function annotation (HC = High Confidence)",
-        LoF_filter => "Reason for LoF not being HC"
+        LoF => "Loss-of-function annotation (HC = High Confidence; LC = Low Confidence)",
+        LoF_filter => "Reason for LoF not being HC",
+        LoF_flags => "Possible warning flags for LoF"
     };
 }
 
@@ -57,6 +58,7 @@ sub new {
     $self->{filter_position} = $self->{filter_position} || 0.05;
     $self->{min_intron_size} = $self->{min_intron_size} || 15;
     $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
+    $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
     
     if ($debug) {
         print "Read LOFTEE parameters\n";
@@ -85,6 +87,7 @@ sub run {
     
     my $confidence = 'HC';
     my @filters = ();
+    my @flags = ();
     
     # Filter out
     if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
@@ -92,7 +95,7 @@ sub run {
         if (check_for_exon_annotation_errors($transcript_variation)) {
             push(@filters, 'EXON_INTRON_UNDEF');
         } elsif (check_for_single_exon($transcript_variation)) {
-            push(@filters, 'SINGLE_EXON');
+            push(@flags, 'SINGLE_EXON');
         } else {
             #push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
             push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
@@ -105,17 +108,19 @@ sub run {
         } else {
             push(@filters, 'SMALL_INTRON') if (check_intron_size($transcript_variation, $self->{min_intron_size}));
             push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
-            push(@filters, 'NAGNAG_SITE') if (check_nagnag_variant($variation_feature));
+            if ("splice_acceptor_variant" ~~ @consequences) {
+                push(@flags, 'NAGNAG_SITE') if (check_nagnag_variant($variation_feature));
+            }
         }
     }
     
-    push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele));
+    push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele, $self->{human_ancestor_fa}));
     
     if ($confidence eq 'HC' && scalar @filters > 0) {
         $confidence = 'LC';
     }
     
-    return { LoF => $confidence, LoF_filter => join(',', @filters) };
+    return { LoF => $confidence, LoF_filter => join(',', @filters), LoF_flags => join(',', @flags) };
 }
 
 # Global functions
@@ -268,25 +273,20 @@ sub check_for_non_canonical_intron_motif {
     return (intron_motif_start($transcript_variation, $intron_number) || intron_motif_end($transcript_variation, $intron_number))
 }
 
-sub check_for_ancestral_allele_faidx {
+sub check_for_ancestral_allele {
     my $transcript_variation_allele = shift;
+    my $human_ancestor_location = shift;
     my $variation_feature = $transcript_variation_allele->variation_feature;
     my $aff_allele = $transcript_variation_allele->variation_feature_seq;
     
     # Get ancestral allele from human_ancestor.fa.rz
     my $region = $variation_feature->seq_region_name() . ":" . $variation_feature->seq_region_start() . '-' . $variation_feature->seq_region_end();
-    my $faidx = `samtools faidx human_ancestor.fa.rz $region`;
+    my $faidx = `samtools faidx $human_ancestor_location $region`;
     my @lines = split(/\n/, $faidx);
     shift @lines;
     my $ancestral_allele = uc(join('', @lines));
     
     return ($ancestral_allele eq $aff_allele)
 }
-
-sub check_for_ancestral_allele {
-    my $transcript_variation_allele = shift;
-    return check_for_ancestral_allele_faidx($transcript_variation_allele)
-}
-
 
 1;
