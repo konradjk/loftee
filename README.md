@@ -181,6 +181,7 @@ Possible values for the `LoF_filter` field are:
 
 - END_TRUNC
 - EXON\_INTRON\_UNDEF
+- INCOMPLETE_CDS
 - NON\_CAN\_SPLICE\_SURR
 - EXON\_INTRON_UNDEF
 - SMALL_INTRON
