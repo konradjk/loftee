@@ -54,7 +54,9 @@ Basic usage:
 
 Advanced usage:
 
-    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,filter_position:0.05
+    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,human_ancestor_fa:/path/to/human_ancestor.fa[.rz]
+    
+    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,human_ancestor_fa:/path/to/human_ancestor.fa,filter_position:0.05
 
 Options:
 
@@ -72,7 +74,12 @@ The Ensembl API can be used to calculate transcript length in two different meth
 
 -   `human_ancestor_fa`
 
-Location of human_ancestor.fa file (need associated tabix index file)
+Location of human_ancestor.fa file (need associated tabix index file). If this is 'false', the ancestral allele will not be checked.
+
+-   `check_complete_cds`
+
+The Ensembl API contains a "Complete CDS" annotation that indicates that a start and stop codon has been identified for this transcript.
+This flag unfortunately requires Ensembl database access, and thus, severely decreases performance and is disabled by default.
 
 ## Output
 

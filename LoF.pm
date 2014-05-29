@@ -12,7 +12,7 @@
 
  mv LoF.pm ~/.vep/Plugins
  perl variant_effect_predictor.pl -i variations.vcf --plugin LoF
- perl variant_effect_predictor.pl -i variations.vcf --plugin LoF,filter_position:0.05,min_intron_size:15
+ perl variant_effect_predictor.pl -i variations.vcf --plugin LoF,filter_position:0.05,...
 
 =head1 DESCRIPTION
 
@@ -59,6 +59,7 @@ sub new {
     $self->{min_intron_size} = $self->{min_intron_size} || 15;
     $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
     $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
+    $self->{check_complete_cds} = $self->{check_complete_cds} || 'false';
     
     if ($debug) {
         print "Read LOFTEE parameters\n";
@@ -66,6 +67,7 @@ sub new {
             print $key . " : " . $value . "\n";
         }
     }
+    
     return $self;
 }
 
@@ -77,6 +79,9 @@ sub run {
     
     my @consequences = map { $_->SO_term } @{ $transcript_variation_allele->get_all_OverlapConsequences };
     
+    my @filters = ();
+    my @flags = ();
+    
     # Filter in
     unless ($transcript_variation->transcript->biotype eq "protein_coding") {
         return {};
@@ -86,8 +91,6 @@ sub run {
     }
     
     my $confidence = 'HC';
-    my @filters = ();
-    my @flags = ();
     
     # Filter out
     if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
@@ -97,7 +100,9 @@ sub run {
         } elsif (check_for_single_exon($transcript_variation)) {
             push(@flags, 'SINGLE_EXON');
         } else {
-            #push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
+            if (lc($self->{check_complete_cds}) eq 'true') {
+                push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
+            }
             push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
         }
     }
@@ -114,7 +119,9 @@ sub run {
         }
     }
     
-    push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele, $self->{human_ancestor_fa}));
+    if (lc($self->{human_ancestor_fa}) ne 'false') {
+        push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele, $self->{human_ancestor_fa}));
+    }
     
     if ($confidence eq 'HC' && scalar @filters > 0) {
         $confidence = 'LC';
@@ -251,7 +258,11 @@ sub check_nagnag_variant {
     my $sequence = $variation_feature->{splice_context_seq_cache};
     
     # Only consider NAGNAG sites for SNPs for now
-    return (length($sequence) == 9 && $sequence =~ m/AG.AG/);
+    if (length($sequence) == 9) {
+        return ($sequence =~ m/AG.AG/);
+    } else {
+        return 0;
+    }
 }
 sub check_for_intron_annotation_errors {
     my $transcript_variation = shift;

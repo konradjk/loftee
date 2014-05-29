@@ -48,8 +48,6 @@ sub new {
 
     my $self = $class->SUPER::new(@_);
     
-    #$self->{has_cache} = 1;
-    
     foreach my $parameter (@{$self->params}) {
         my @param = split /:/, $parameter;
         if (scalar @param == 2) {
@@ -58,6 +56,7 @@ sub new {
     }
     
     $self->{db_location} = $self->{db_location} || 'gtex.db';
+    $self->{tissues} = $self->{tissues} || 'all';
     $self->{expressed_cutoff} = $self->{expressed_cutoff} || 1;
     $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
     
@@ -74,15 +73,23 @@ sub run {
         #print "Got expression cache!\n" if $ddebug;
         $transcript_tissue = $transcript->{expression_cache};
     } else {
-        my $sth = $self->{database}->prepare("SELECT * FROM tissues WHERE transcript = ?");
-        $sth->execute($transcript->stable_id());
+        my $sql_statement;
+        if ($self->{tissues} eq 'all') {
+            $sql_statement = $self->{database}->prepare("SELECT * FROM tissues WHERE transcript = ?");
+            $sql_statement->execute($transcript->stable_id());
+        } else {
+            my @sql_parameters = split /,/, $self->{tissues};
+            $sql_statement = $self->{database}->prepare("SELECT * FROM tissues WHERE transcript = ? AND tissue IN " . join(', ', ('?') x @sql_parameters));
+            unshift(@sql_parameters, $transcript->stable_id());
+            $sql_statement->execute(@sql_parameters);
+        }
         
         my @tissue_entries = ();
-        while (my $entry = $sth->fetchrow_hashref) {
+        while (my $entry = $sql_statement->fetchrow_hashref) {
             $entry->{tissue} =~ s/ /_/g;
             push(@tissue_entries, $entry->{tissue} . ":" . $entry->{expression});
         }
-        $transcript_tissue = join(",", @tissue_entries);
+        $transcript_tissue = join("&", @tissue_entries);
         
         print "Tissues: " . $transcript_tissue . "\n" if $ddebug;
         $transcript->{expression_cache} = $transcript_tissue;
