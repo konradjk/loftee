@@ -25,7 +25,7 @@ package TissueExpression;
 use strict;
 use warnings;
 
-our $debug = 0;
+our $debug = 1;
 our $ddebug = 0;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
@@ -57,8 +57,15 @@ sub new {
     
     $self->{db_location} = $self->{db_location} || 'gtex.db';
     $self->{tissues} = $self->{tissues} || 'all';
-    $self->{expressed_cutoff} = $self->{expressed_cutoff} || 1;
+    $self->{expressed_cutoff} = $self->{expressed_cutoff} || 0.1;
     $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
+    
+    if ($debug) {
+        print "Read LOFTEE parameters\n";
+        while (my ($key, $value) = each(%$self)) {
+            print $key . " : " . $value . "\n";
+        }
+    }
     
     return $self;
 }
@@ -70,7 +77,6 @@ sub run {
     
     my $transcript_tissue;
     if (exists($transcript->{expression_cache})) {
-        #print "Got expression cache!\n" if $ddebug;
         $transcript_tissue = $transcript->{expression_cache};
     } else {
         my $sql_statement;
@@ -87,7 +93,9 @@ sub run {
         my @tissue_entries = ();
         while (my $entry = $sql_statement->fetchrow_hashref) {
             $entry->{tissue} =~ s/ /_/g;
-            push(@tissue_entries, $entry->{tissue} . ":" . $entry->{expression});
+            if ($entry->{expression} > $self->{expressed_cutoff}) {
+                push(@tissue_entries, $entry->{tissue} . ":" . $entry->{expression});
+            }
         }
         $transcript_tissue = join("&", @tissue_entries);
         

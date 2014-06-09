@@ -43,10 +43,14 @@ For splice-site variants, LOFTEE flags:
 ## Requirements
 
 -   VEP
--   Ancestral sequence (human_ancestor.fa.rz)
+-   >= Perl 5.10.1
+-   Ancestral sequence (human\_ancestor.fa[.rz])
 -   Samtools (must be on path)
 
 ## Usage
+
+LOFTEE is easiest run when it is in the VEP plugin directory (`~/.vep/Plugins/`): `mv LoF.pm ~/.vep/Plugins`.
+Alternatively, VEP can be run with `--dir_plugins` to specify a plugins directory.
 
 Basic usage:
 
@@ -74,7 +78,12 @@ The Ensembl API can be used to calculate transcript length in two different meth
 
 -   `human_ancestor_fa`
 
-Location of human_ancestor.fa file (need associated tabix index file). If this is 'false', the ancestral allele will not be checked.
+Location of human\_ancestor.fa file (need associated tabix index file), available for download here:
+[http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz)
+and [http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz.fai](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz.fai).
+Courtesy of Javier Herrero and the 1000 Genomes Project
+(source: [ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/](ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/)).
+If this flag is set to 'false', the ancestral allele will not be checked and filtered.
 
 -   `check_complete_cds`
 
@@ -87,9 +96,10 @@ The output is the standard VEP output, or standard VEP VCF if `--vcf` is passed 
 For those unfamiliar with VEP's VCF output, the annotations are written to the CSQ attribute of the INFO field.
 Here, a comma-separated list of consequences, corresponding to each transcript-(alternate)allele pair, is written with each entry as a pipe-delimited set of annotations.
 With more alleles and transcripts (and especially with the `--everything` flag), this will inevitably make for some very long INFO fields that are difficult to parse by eye.
-See `read_vep_vcf.py` for a parsing script.
 
-In other words, a VCF line may look like:
+See `src/read_vep_vcf.py` for a barebones example of a parsing script, or the section below on Parsing the VEP/LoF VCF for some tips and tricks.
+
+From VEP, a VCF line may look like:
 
 <pre>
 1       1178848 rs115005664     G       A       1000.0   PASS   AC=1;AF=0.5;AN=2;CSQ=A|ENSG00000184163|ENST00000468365|Transcript|non_coding_exon_variant&nc_transcript_variant|445|||||||-1|||,A|ENSG00000184163|ENST00000462849|Transcript|upstream_gene_variant|||||||5|-1|||,A|ENSG00000184163|ENST00000486627|Transcript|downstream_gene_variant|||||||513|-1|||,A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag|||-1|||HC,A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1|||`
@@ -105,7 +115,8 @@ A|ENSG00000184163|ENST00000330388|Transcript|stop_gained|648|616|206|Q/*|Cag/Tag
 A|ENSG00000184163|ENST00000478606|Transcript|upstream_gene_variant|||||||310|-1|||
 </pre>
 
-The key to parsing this section is in the header line written by VEP.
+The overall format of a VCF is described on the [VCF Specification Page](http://samtools.github.io/hts-specs/VCFv4.1.pdf).
+The key to parsing this section is in the header line added by VEP.
 
 <pre>
 ##INFO=&lt;ID=CSQ,Number=.,Type=String,Description="Consequence type as predicted by VEP. Format: Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_flags|LoF_filter|LoF"&gt;
@@ -117,19 +128,30 @@ This line contains the corresponding mappings to these fields after `Format:`:
 Allele|Gene|Feature|Feature_type|Consequence|cDNA_position|CDS_position|Protein_position|Amino_acids|Codons|Existing_variation|DISTANCE|STRAND|LoF_flags|LoF_filter|LoF
 </pre>
 
-In Python, this line can be read with:
+### Parsing the VEP/LoF VCF
+
+One approach that simplifies extracting data from the INFO column is to convert the text representation to a dictionary, where each annotation entry is a key-value pair.
+Since CSQ entries in the INFO field can contain multiple allele-transcript pairs, we will need to make a list of these dictionaries -- one dictionary per pair.
+
+In Python, the header line line can be read with:
 
 <pre>
 vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
 </pre>
 
-The INFO field can then be read with:
-<pre>fields = vcf_line.split('\t')
+To access the annotations, the VCF record can then be read with:
+<pre># Split VCF line
+fields = vcf_line.split('\t')
+
+# Split INFO field by semicolons (using lookahead regular expressions due to VEP introducing semi-colons into the INFO field in some scenarios)
+# This creates a dictionary with key-value pairs of info field.
 info_field = dict([(x.split('=', 1)) for x in re.split(';(?=\w)', fields[7]) if x.find('=') > -1])
+
+# For instance, info_field['AF'] would return the allele frequency of that variant.
+
+# Pull together the VEP field names from before with CSQ attribute from INFO field (which are pipe-delimited).
 annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ'].split(',')]
 </pre>
-
-(Note that this requires `import re` due to VEP introducing semi-colons into the INFO field in some scenarios)
 
 `annotations` is now a list of dictionaries like so:
 
@@ -168,6 +190,9 @@ annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ
   'STRAND': '-1',
   'cDNA_position': '648'}, ...]
 </pre>
+
+CSQ entries in the INFO field for a given variant can now be accessed easily.
+For example, to get the LoF_filter field for the first allele transcript pair use: `annotations[0]['LoF_filter']`.
 
 LoF annotations can be extracted as:
 
