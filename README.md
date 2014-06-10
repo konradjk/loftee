@@ -217,3 +217,5 @@ Possible values for the `Lof_flags` field are:
 
 - SINGLE_EXON
 - NAGNAG_SITE
+
+Special thanks to Monkol Lek for the initial implementation of the software and developing many of these filters.
