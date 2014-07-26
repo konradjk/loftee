@@ -61,6 +61,8 @@ sub new {
     $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
     $self->{check_complete_cds} = $self->{check_complete_cds} || 'false';
     
+    $debug = $self->{debug} || 0;
+    
     if ($debug) {
         print "Read LOFTEE parameters\n";
         while (my ($key, $value) = each(%$self)) {
@@ -151,6 +153,8 @@ sub intron_motif_start {
         $transcript->{intron_cache}->{$intron_number} = $gene_introns[$intron_number]->seq;
     }
     my $sequence = $transcript->{intron_cache}->{$intron_number};
+    
+    print "Intron starts with: " . substr($sequence, 0, 2) . "\n" if ($debug && substr($sequence, 0, 2) ne 'GT');
     
     return (substr($sequence, 0, 2) ne 'GT');
 }

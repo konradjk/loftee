@@ -59,6 +59,7 @@ sub new {
     $self->{tissues} = $self->{tissues} || 'all';
     $self->{expressed_cutoff} = $self->{expressed_cutoff} || 0.1;
     $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
+    $self->{tissues_only} = $self->{tissues_only} || 'false';
     
     if ($debug) {
         print "Read LOFTEE parameters\n";
@@ -94,7 +95,11 @@ sub run {
         while (my $entry = $sql_statement->fetchrow_hashref) {
             $entry->{tissue} =~ s/ /_/g;
             if ($entry->{expression} > $self->{expressed_cutoff}) {
-                push(@tissue_entries, $entry->{tissue} . ":" . $entry->{expression});
+                unless (lc($self->{tissues_only}) eq 'false') {
+                    push(@tissue_entries, $entry->{tissue});
+                } else {
+                    push(@tissue_entries, $entry->{tissue} . ":" . $entry->{expression});
+                }
             }
         }
         $transcript_tissue = join("&", @tissue_entries);
