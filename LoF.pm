@@ -30,6 +30,7 @@ our $debug = 0;
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
 
 use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
+use Bio::Perl;
 
 sub get_header_info {
     return {
@@ -116,7 +117,7 @@ sub run {
             push(@filters, 'SMALL_INTRON') if (check_intron_size($transcript_variation, $self->{min_intron_size}));
             push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
             if ("splice_acceptor_variant" ~~ @consequences) {
-                push(@flags, 'NAGNAG_SITE') if (check_nagnag_variant($variation_feature));
+                push(@flags, 'NAGNAG_SITE') if (check_nagnag_variant($transcript_variation, $variation_feature));
             }
         }
     }
@@ -253,11 +254,14 @@ sub check_surrounding_introns {
 
 # Splicing annotations
 sub check_nagnag_variant {
+    my $transcript_variation = shift;
     my $variation_feature = shift;
     
     # Cache splice sites
     unless (exists($variation_feature->{splice_context_seq_cache})) {
-        $variation_feature->{splice_context_seq_cache} = uc($variation_feature->feature_Slice->expand(4, 4)->seq);
+        my $seq = uc($variation_feature->feature_Slice->expand(4, 4)->seq);
+        $seq = ($transcript_variation->transcript->strand() == -1) ? reverse_complement($seq)->seq() : $seq;
+        $variation_feature->{splice_context_seq_cache} = $seq;
     }
     my $sequence = $variation_feature->{splice_context_seq_cache};
     
