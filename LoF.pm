@@ -25,7 +25,7 @@ package LoF;
 use strict;
 use warnings;
 
-our $debug = 0;
+our $debug;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
 
@@ -36,7 +36,8 @@ sub get_header_info {
     return {
         LoF => "Loss-of-function annotation (HC = High Confidence; LC = Low Confidence)",
         LoF_filter => "Reason for LoF not being HC",
-        LoF_flags => "Possible warning flags for LoF"
+        LoF_flags => "Possible warning flags for LoF",
+        LoF_info => "Info used for LoF annotation"
     };
 }
 
@@ -84,6 +85,7 @@ sub run {
     
     my @filters = ();
     my @flags = ();
+    my @info = ();
     
     # Filter in
     unless ($transcript_variation->transcript->biotype eq "protein_coding") {
@@ -97,7 +99,11 @@ sub run {
     
     # Filter out
     if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
-        push(@filters, 'END_TRUNC') if (check_position($transcript_variation, $self->{filter_position}, $self->{fast_length_calculation}));
+        # Positional filter
+        my $position = get_position($transcript_variation, $self->{fast_length_calculation});
+        push(@info, 'POSITION:' . $position);
+        push(@filters, 'END_TRUNC') if ($position >= 1-$self->{filter_position});
+        
         if (check_for_exon_annotation_errors($transcript_variation)) {
             push(@filters, 'EXON_INTRON_UNDEF');
         } elsif (check_for_single_exon($transcript_variation)) {
@@ -114,7 +120,11 @@ sub run {
         if (check_for_intron_annotation_errors($transcript_variation)) {
             push(@filters, 'EXON_INTRON_UNDEF');
         } else {
-            push(@filters, 'SMALL_INTRON') if (check_intron_size($transcript_variation, $self->{min_intron_size}));
+            # Intron size filter
+            my $intron_size = get_intron_size($transcript_variation);
+            push(@info, 'INTRON_SIZE:' . $intron_size);
+            push(@filters, 'SMALL_INTRON') if ($intron_size < $self->{min_intron_size});
+            
             push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
             if ("splice_acceptor_variant" ~~ @consequences) {
                 push(@flags, 'NAGNAG_SITE') if (check_nagnag_variant($transcript_variation, $variation_feature));
@@ -130,7 +140,7 @@ sub run {
         $confidence = 'LC';
     }
     
-    return { LoF => $confidence, LoF_filter => join(',', @filters), LoF_flags => join(',', @flags) };
+    return { LoF => $confidence, LoF_filter => join(',', @filters), LoF_flags => join(',', @flags), LoF_info => join(',', @info) };
 }
 
 # Global functions
@@ -209,8 +219,9 @@ sub check_for_exon_annotation_errors {
     return (!defined($transcript_variation->exon_number))
 }
 
-sub check_position {
-    my ($transcript_variation, $cutoff, $speed) = @_;
+sub get_position {
+    my $transcript_variation = shift;
+    my $speed = shift;
     
     # 2 ways to get length: fast and approximate, or slow and accurate
     my $transcript_cds_length;
@@ -219,9 +230,9 @@ sub check_position {
     } else {
         $transcript_cds_length = get_cds_length($transcript_variation->transcript);
     }
-    my $variant_cds_position = $transcript_variation->cdna_end;
+    my $variant_cds_position = $transcript_variation->cds_end;
     
-    return ($variant_cds_position/$transcript_cds_length >= 1-$cutoff);
+    return $variant_cds_position/$transcript_cds_length;
 }
 
 sub check_for_single_exon {
@@ -277,12 +288,13 @@ sub check_for_intron_annotation_errors {
     return (!defined($transcript_variation->intron_number))
 }
 
-sub check_intron_size {
+sub get_intron_size {
     my $transcript_variation = shift;
-    my $min_intron_size = shift;
     my ($intron_number, $total_introns) = split /\//, ($transcript_variation->intron_number);
     $intron_number--;
-    return small_intron($transcript_variation, $intron_number, $min_intron_size)
+    my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};
+
+    return ($gene_introns[$intron_number]->length);
 }
 
 sub check_for_non_canonical_intron_motif {
