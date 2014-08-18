@@ -308,6 +308,12 @@ sub check_for_ancestral_allele {
     my $transcript_variation_allele = shift;
     my $human_ancestor_location = shift;
     my $variation_feature = $transcript_variation_allele->variation_feature;
+    
+    # Ignoring indels for now
+    if (($variation_feature->allele_string =~ /-/) or (length($variation_feature->allele_string) != 3)) {
+        return 0;
+    }
+    
     my $aff_allele = $transcript_variation_allele->variation_feature_seq;
     
     # Get ancestral allele from human_ancestor.fa.rz
