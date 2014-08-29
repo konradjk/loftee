@@ -31,7 +31,7 @@ def main(args):
 
         # Pull out annotation info from INFO and ALT fields
         fields = line.split('\t')
-        info_field = dict([(x.split('=', 1)) for x in re.split(';(?=\w)', fields[header['INFO']]) if x.find('=') > -1])
+        info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[header['INFO']])])
 
         # Only reading lines with an annotation after this point
         if 'CSQ' not in info_field: continue
