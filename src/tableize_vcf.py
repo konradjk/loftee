@@ -16,7 +16,7 @@ def main(args):
     # Read parameters
     f = gzip.open(args.vcf) if args.vcf.endswith('.gz') else open(args.vcf)
     if args.output is None:
-        args.output = '.table'.join(args.output.rsplit('.vcf', 1))
+        args.output = '.table'.join(args.vcf.rsplit('.vcf', 1))
     if args.output == args.vcf:
         print >> sys.stderr, "VCF filename has no '.vcf' and no output file name was provided. Exiting."
         sys.exit(1)
@@ -24,6 +24,7 @@ def main(args):
 
     desired_info = [] if args.info is None else args.info.split(',')
     desired_vep_info = [] if args.vep_info is None else args.vep_info.split(',')
+    desired_sample_info = [] if args.sample_info is None else args.sample_info.split(',')
     if args.simplify:
         args.max_csq = True
         args.lof_only = True
@@ -37,8 +38,11 @@ def main(args):
     started = False
 
     output_header = 'CHROM\tPOS\tREF\tALT\t'
+    if args.add_ucsc_link: output_header += 'UCSC\t'
     if args.include_id: output_header += 'ID\t'
     if not args.omit_filter: output_header += 'FILTER\t'
+
+    raw_ucsc_link = 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position=chr%s:%s-%s'
 
     for line in f:
         line = line.strip()
@@ -76,6 +80,7 @@ def main(args):
             if 'ALLELE_NUM' not in vep_info_from_header:
                 print >> sys.stderr, "VEP output does not have ALLELE_NUM which is required for extraction. Please re-run VEP with --allele_number. Exiting."
                 sys.exit(1)
+
         if header is None:
             print >> sys.stderr, "VCF file does not have a header line (CHROM POS etc.). Exiting."
             sys.exit(1)
@@ -111,9 +116,28 @@ def main(args):
                 else:
                     print >> sys.stderr, 'WARNING: Did not find %s in VEP header. Not including from here on out.' % info
 
+            # Getting info from individuals
+            original_desired_sample_info = copy.deepcopy(desired_sample_info)
+            desired_sample_info = []
+            if len(original_desired_sample_info) > 0:
+                if 'FORMAT' not in header:
+                    print >> sys.stderr, 'WARNING: Did not find FORMAT in header line, will not be extracting any SAMPLE.FORMATs'
+                else:
+                    for info in original_desired_sample_info:
+                        sample_format = info.split('.')
+                        if len(sample_format) != 2:
+                            print >> sys.stderr, 'WARNING: %s is not a SAMPLE.FORMAT designation' % sample_format
+                        else:
+                            sample, format = sample_format
+                            if sample in header:
+                                print >> sys.stderr, 'SUCCESS: Found sample %s in header' % sample
+                                desired_sample_info.append(info)
+                            else:
+                                print >> sys.stderr, 'WARNING: Sample %s not found in header' % sample
+
             # Warnings/errors for missing data
             if any_missing: print >> sys.stderr, 'WARNING: At least one INFO line requested was not found. Continuing, but results may be off.'
-            if len(desired_info) + len(desired_vep_info) == 0:
+            if len(desired_info) + len(desired_vep_info) + len(desired_sample_info) == 0:
                 print >> sys.stderr, 'No fields left in requested info/VEP info. Exiting.'
                 sys.exit(1)
             if args.lof_only and 'LoF' not in desired_vep_info:
@@ -123,6 +147,7 @@ def main(args):
             # Ready to go.
             output_header += '\t'.join(desired_info)
             if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
+            if len(desired_sample_info) > 0: output_header += '\t' + '\t'.join(desired_sample_info)
             print >> g, output_header
             started = True
 
@@ -140,7 +165,10 @@ def main(args):
             else:
                 annotations = []
             if args.lof_only and len(annotations) == 0: continue
+
         alts = fields[header['ALT']].split(',')
+        format_fields_list = fields[header['FORMAT']].split(':')
+        format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
 
         # Default is split line into all alternate alleles
         if not args.preserve_multiallelic:
@@ -150,6 +178,9 @@ def main(args):
                     output = [fields[header['CHROM']], str(new_pos), new_ref, new_alt]
                 else:
                     output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], alt]
+
+                ucsc_link = raw_ucsc_link % (output[0], int(output[1]) - args.ucsc_link_window, int(output[1]) + args.ucsc_link_window)
+                if args.add_ucsc_link: output.append(ucsc_link)
                 if args.include_id: output.append(fields[header['ID']])
                 if not args.omit_filter: output.append(fields[header['FILTER']])
 
@@ -182,9 +213,22 @@ def main(args):
                         annotation_output = ','.join(this_alt_vep_info)
                         if annotation_output == '': annotation_output = missing_string
                         output.append(annotation_output)
+
+
+                for sample_format in desired_sample_info:
+                    sample, format = sample_format.split('.')
+                    if format not in format_fields: continue
+                    this_sample_format = dict(zip(format_fields_list, fields[header[sample]].split(':')))
+                    if format in this_sample_format:
+                        output.append(this_sample_format[format])
+                    else:
+                        output.append(missing_string)
+
                 print >> g, '\t'.join(output)
         else:
             output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], fields[header['ALT']]]
+            ucsc_link = raw_ucsc_link % (output[0], int(output[1]) - args.ucsc_link_window, int(output[1]) + args.ucsc_link_window)
+            if args.add_ucsc_link: output.append(ucsc_link)
             if args.include_id: output.append(fields[header['ID']])
             if not args.omit_filter: output.append(fields[header['FILTER']])
             for info in desired_info:
@@ -207,6 +251,16 @@ def main(args):
                     annotation_output = ','.join(this_vep_info)
                     if annotation_output == '': annotation_output = missing_string
                     output.append(annotation_output)
+
+            for sample_format in desired_sample_info:
+                sample, format = sample_format
+                if format not in format_fields: continue
+                this_sample_format = dict(zip(format_fields_list, fields[header[sample]].split(':')))
+                if format in this_sample_format:
+                    output.append(this_sample_format[format])
+                else:
+                    output.append(missing_string)
+
             print >> g, '\t'.join(output)
 
     f.close()
@@ -222,6 +276,7 @@ By default, splits VCF record into one allele per line and creates R/MySQL/etc r
     parser.add_argument('--omit_filter', action='store_true', help='Omit FILTER field from output')
     parser.add_argument('--include_id', action='store_true', help='Include ID field in output')
     parser.add_argument('--vep_info', help='Comma separated list of CSQ sub-fields to extract')
+    parser.add_argument('--sample_info', help='Comma separated list of SAMPLE.FORMAT to extract')
     parser.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
     parser.add_argument('--max_csq', action='store_true', help='Max Consequence for each annotation')
     parser.add_argument('--collapse_annotations', action='store_true', help='Collapse identical annotations')
@@ -230,5 +285,7 @@ By default, splits VCF record into one allele per line and creates R/MySQL/etc r
     parser.add_argument('--preserve_multiallelic', '-p', action='store_true', help='Preserve multi-allelic records as one line')
     parser.add_argument('--options', action='store_true', help='Print possible info and vep_info options (from header) and exit')
     parser.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA)')
+    parser.add_argument('--add_ucsc_link', action='store_true', help='Writes link to UCSC for this variant (see ucsc_link_window)')
+    parser.add_argument('--ucsc_link_window', help='Window size for UCSC link', type=int, default=20)
     args = parser.parse_args()
     main(args)

@@ -205,17 +205,35 @@ lof_annotations = [x for x in annotations if x['LoF'] == 'HC']
 Possible values for the `LoF_filter` field are:
 
 - END_TRUNC
-- EXON\_INTRON\_UNDEF
+The LoF variant falls in the last `filter_position` of the transcript (default = 0.05).
+
 - INCOMPLETE_CDS
+The LoF falls in a transcript whose start or stop codons are not known.
+
 - NON\_CAN\_SPLICE\_SURR
+The LoF falls in an exon whose surround splice sites are non-canonical (not GT..AG).
+
 - EXON\_INTRON_UNDEF
+The LoF falls in a transcript whose exon/intron boundaries are undefined in the EnsEMBL API.
+
 - SMALL_INTRON
+The LoF falls in a splice site of a small (biologically unlikely; default < 15 bp) intron.
+
 - NON\_CAN_SPLICE
+The LoF is a splice variant that falls in a non-canonical splice site (not GT..AG).
+
 - ANC_ALLELE
+The alternate allele of the LoF reverts the sequence back to the ancestral state.
+
+- CONSERVATION
+The LoF falls in an exon that does not exhibit a pattern of conservation typical of a protein-coding exon.
 
 Possible values for the `Lof_flags` field are:
 
 - SINGLE_EXON
+The LoF falls in a single exon transcript.
+
 - NAGNAG_SITE
+The LoF is a splice variant that falls into a NAGNAG sequence, which may indicate a frame-restoring splice site.
 
 Special thanks to Monkol Lek for the initial implementation of the software and developing many of these filters.
