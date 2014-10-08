@@ -167,8 +167,9 @@ def main(args):
             if args.lof_only and len(annotations) == 0: continue
 
         alts = fields[header['ALT']].split(',')
-        format_fields_list = fields[header['FORMAT']].split(':')
-        format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
+        if 'FORMAT' in header:
+            format_fields_list = fields[header['FORMAT']].split(':')
+            format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
 
         # Default is split line into all alternate alleles
         if not args.preserve_multiallelic:
