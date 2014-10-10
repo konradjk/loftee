@@ -78,11 +78,17 @@ The Ensembl API can be used to calculate transcript length in two different meth
 
 -   `human_ancestor_fa`
 
-Location of human\_ancestor.fa file (need associated tabix index file), available for download here:
+Location of human\_ancestor.fa file (need associated tabix index file),
+available for download here (for samtools 0.1.19 and older):
 [http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz)
 and [http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz.fai](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz.fai).
 Courtesy of Javier Herrero and the 1000 Genomes Project
-(source: [ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/](ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/)).
+(source:
+[ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/](ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/)). samtools 1.x
+uses bgzipped inputs for samtools faidx and downloads are available here:
+[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz),
+[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai),
+[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi).
 If this flag is set to 'false', the ancestral allele will not be checked and filtered.
 
 -   `check_complete_cds`
