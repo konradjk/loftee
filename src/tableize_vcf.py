@@ -12,6 +12,7 @@ except ImportError, e:
     get_minimal_representation = None
     print >> sys.stderr, "WARNING: Did not find minimal_representation. Outputting raw positions."
 
+
 def main(args):
     # Read parameters
     f = gzip.open(args.vcf) if args.vcf.endswith('.gz') else open(args.vcf)
@@ -20,7 +21,8 @@ def main(args):
     if args.output == args.vcf:
         print >> sys.stderr, "VCF filename has no '.vcf' and no output file name was provided. Exiting."
         sys.exit(1)
-    g = gzip.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
+    if not args.options:
+        g = gzip.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
 
     desired_info = [] if args.info is None else args.info.split(',')
     desired_vep_info = [] if args.vep_info is None else args.vep_info.split(',')
@@ -37,10 +39,10 @@ def main(args):
     info_from_header = {}
     started = False
 
-    output_header = 'CHROM\tPOS\tREF\tALT\t'
-    if args.add_ucsc_link: output_header += 'UCSC\t'
-    if args.include_id: output_header += 'ID\t'
-    if not args.omit_filter: output_header += 'FILTER\t'
+    output_header = 'CHROM\tPOS\tREF\tALT'
+    if args.add_ucsc_link: output_header += '\tUCSC'
+    if args.include_id: output_header += '\tID'
+    if not args.omit_filter: output_header += '\tFILTER'
 
     raw_ucsc_link = 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position=chr%s:%s-%s'
 
@@ -114,7 +116,15 @@ def main(args):
                     desired_vep_info.append(info)
                     print >> sys.stderr, 'SUCCESS: Found %s' % info
                 else:
-                    print >> sys.stderr, 'WARNING: Did not find %s in VEP header. Not including from here on out.' % info
+                    matches = 0
+                    for header_record in vep_info_from_header:
+                        if re.search('^%s$' % info, header_record):
+                            matches += 1
+                            desired_vep_info.append(header_record)
+                            print >> sys.stderr, 'SUCCESS: Found %s (matching %s)' % (header_record, info)
+                    if not matches:
+                        print >> sys.stderr, 'WARNING: Did not find %s in VEP header. Not including from here on out.' % info
+                        any_missing += 1
 
             # Getting info from individuals
             original_desired_sample_info = copy.deepcopy(desired_sample_info)
@@ -145,7 +155,7 @@ def main(args):
                 sys.exit(1)
 
             # Ready to go.
-            output_header += '\t'.join(desired_info)
+            output_header += '\t' + '\t'.join(desired_info)
             if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
             if len(desired_sample_info) > 0: output_header += '\t' + '\t'.join(desired_sample_info)
             print >> g, output_header
@@ -155,10 +165,12 @@ def main(args):
         fields = line.split('\t')
         info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[header['INFO']])])
 
+        if args.only_pass and fields[header['FILTER']] != 'PASS': continue
+
         # Only get VEP info if requested
         if len(desired_vep_info) > 0:
             if 'CSQ' in info_field:
-                # if statement here is a fix for VEP's occasional introduction of a semi-colon into the CSQ.
+                # if statement in list comp below is a fix for VEP's occasional introduction of a semi-colon into the CSQ.
                 # Can be removed once that is completely fixed.
                 annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ'].split(',') if len(vep_field_names) == len(x.split('|'))]
                 if args.lof_only: annotations = [x for x in annotations if x['LoF'] == 'HC']
@@ -171,90 +183,55 @@ def main(args):
             format_fields_list = fields[header['FORMAT']].split(':')
             format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
 
-        # Default is split line into all alternate alleles
-        if not args.preserve_multiallelic:
-            for index, alt in enumerate(alts):
-                if get_minimal_representation is not None:
-                    new_pos, new_ref, new_alt = get_minimal_representation(fields[header['POS']], fields[header['REF']], alt)
-                    output = [fields[header['CHROM']], str(new_pos), new_ref, new_alt]
-                else:
-                    output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], alt]
+        for index, alt in enumerate(alts):
+            if not args.do_not_minrep and get_minimal_representation is not None:
+                new_pos, new_ref, new_alt = get_minimal_representation(fields[header['POS']], fields[header['REF']], alt)
+                output = [fields[header['CHROM']], str(new_pos), new_ref, new_alt]
+            else:
+                output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], alt]
 
-                ucsc_link = raw_ucsc_link % (output[0], int(output[1]) - args.ucsc_link_window, int(output[1]) + args.ucsc_link_window)
-                if args.add_ucsc_link: output.append(ucsc_link)
-                if args.include_id: output.append(fields[header['ID']])
-                if not args.omit_filter: output.append(fields[header['FILTER']])
-
-                # Get info and VEP info
-                for info in desired_info:
-                    if info in info_field:
-                        if info in info_from_header and 'Number' in info_from_header[info] and info_from_header[info]['Number'] == 'A':
-                            output.append(info_field[info].split(',')[index])
-                        else:
-                            output.append(info_field[info])
-                    else:
-                        output.append(missing_string)
-                if len(desired_vep_info) > 0:
-                    # Filter to this allele
-                    this_alt_annotations = [x for x in annotations if int(x['ALLELE_NUM']) - 1 == index]
-                    if args.lof_only and len(this_alt_annotations) == 0: continue
-                    for info in desired_vep_info:
-                        this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
-
-                        # Process options
-                        if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
-                        if args.simplify_gtex and info == 'TissueExpression':
-                            # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
-                            this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
-                        if args.collapse_annotations:
-                            this_alt_vep_info = set(this_alt_vep_info)
-                            # Collapse consequence further
-                            if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
-
-                        annotation_output = ','.join(this_alt_vep_info)
-                        if annotation_output == '': annotation_output = missing_string
-                        output.append(annotation_output)
-
-
-                for sample_format in desired_sample_info:
-                    sample, format = sample_format.split('.')
-                    if format not in format_fields: continue
-                    this_sample_format = dict(zip(format_fields_list, fields[header[sample]].split(':')))
-                    if format in this_sample_format:
-                        output.append(this_sample_format[format])
-                    else:
-                        output.append(missing_string)
-
-                print >> g, '\t'.join(output)
-        else:
-            output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], fields[header['ALT']]]
             ucsc_link = raw_ucsc_link % (output[0], int(output[1]) - args.ucsc_link_window, int(output[1]) + args.ucsc_link_window)
             if args.add_ucsc_link: output.append(ucsc_link)
             if args.include_id: output.append(fields[header['ID']])
             if not args.omit_filter: output.append(fields[header['FILTER']])
+
+            # Get info and VEP info
             for info in desired_info:
                 if info in info_field:
-                    output.append(info_field[info])
+                    if info in info_from_header:
+                        if 'Number' in info_from_header[info] and info_from_header[info]['Number'] == 'A':
+                            output.append(info_field[info].split(',')[index])
+                        elif 'Number' in info_from_header[info] and info_from_header[info]['Number'] == '0':
+                            output.append(info)
+                        else:
+                            output.append(info_field[info])
+                    else:
+                        output.append(info_field[info])
                 else:
                     output.append(missing_string)
             if len(desired_vep_info) > 0:
+                # Filter to this allele
+                this_alt_annotations = [x for x in annotations if int(x['ALLELE_NUM']) - 1 == index]
+                if args.lof_only and len(this_alt_annotations) == 0: continue
                 for info in desired_vep_info:
-                    this_vep_info = [x[info] for x in annotations]
+                    this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
                     # Process options
-                    if args.max_csq and info == 'Consequence': this_vep_info = [csq_max(x) for x in this_vep_info]
+                    if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
                     if args.simplify_gtex and info == 'TissueExpression':
-                        this_vep_info = set([y.split(':')[0] for x in this_vep_info for y in x.split('&')])
+                        # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
+                        this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
                     if args.collapse_annotations:
-                        this_vep_info = set(this_vep_info)
-                        if args.max_csq and info == 'Consequence': this_vep_info = [csq_max(this_vep_info)]
+                        this_alt_vep_info = set(this_alt_vep_info)
+                        # Collapse consequence further
+                        if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
 
-                    annotation_output = ','.join(this_vep_info)
+                    annotation_output = ','.join(this_alt_vep_info)
                     if annotation_output == '': annotation_output = missing_string
                     output.append(annotation_output)
 
             for sample_format in desired_sample_info:
-                sample, format = sample_format
+                sample, format = sample_format.split('.')
                 if format not in format_fields: continue
                 this_sample_format = dict(zip(format_fields_list, fields[header[sample]].split(':')))
                 if format in this_sample_format:
@@ -267,26 +244,35 @@ def main(args):
     f.close()
 
 if __name__ == '__main__':
-    INFO = '''Parses VCF to extract data from INFO field and CSQ (from VEP) inside INFO field.
-By default, splits VCF record into one allele per line and creates R/MySQL/etc readable table.'''
+    INFO = '''Parses VCF to extract data from INFO field, VEP annotation (CSQ from inside INFO field), or sample info.
+By default, splits VCF record into one allele per line and creates R/MySQL/etc readable table.
+For VEP info extraction, VEP must be run with --allele_number.'''
     parser = argparse.ArgumentParser(description=INFO)
 
     parser.add_argument('--vcf', '--input', '-i', help='Input VCF file; may be gzipped', required=True)
     parser.add_argument('--output', '-o', help='Output table file (default=input{-.vcf}.table[.gz]); may be gzipped')
-    parser.add_argument('--info', help='Comma separated list of INFO fields to extract')
-    parser.add_argument('--omit_filter', action='store_true', help='Omit FILTER field from output')
-    parser.add_argument('--include_id', action='store_true', help='Include ID field in output')
-    parser.add_argument('--vep_info', help='Comma separated list of CSQ sub-fields to extract')
-    parser.add_argument('--sample_info', help='Comma separated list of SAMPLE.FORMAT to extract')
-    parser.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
-    parser.add_argument('--max_csq', action='store_true', help='Max Consequence for each annotation')
-    parser.add_argument('--collapse_annotations', action='store_true', help='Collapse identical annotations')
-    parser.add_argument('--simplify', action='store_true', help='Alias for --lof_only --max_csq --collapse_annotations')
-    parser.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
-    parser.add_argument('--preserve_multiallelic', '-p', action='store_true', help='Preserve multi-allelic records as one line')
     parser.add_argument('--options', action='store_true', help='Print possible info and vep_info options (from header) and exit')
-    parser.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA)')
-    parser.add_argument('--add_ucsc_link', action='store_true', help='Writes link to UCSC for this variant (see ucsc_link_window)')
-    parser.add_argument('--ucsc_link_window', help='Window size for UCSC link', type=int, default=20)
+
+    include_arguments = parser.add_argument_group('Fields to include', '(at least one of info, vep_info, or sample_info is required)')
+    include_arguments.add_argument('--omit_filter', action='store_true', help='Omit FILTER field from output')
+    include_arguments.add_argument('--include_id', action='store_true', help='Include ID field in output')
+    include_arguments.add_argument('--add_ucsc_link', action='store_true', help='Writes link to UCSC for this variant (see ucsc_link_window)')
+    include_arguments.add_argument('--info', help='Comma separated list of INFO fields to extract (regex allowed)')
+    include_arguments.add_argument('--vep_info', help='Comma separated list of CSQ sub-fields to extract (regex allowed)')
+    include_arguments.add_argument('--sample_info', help='Comma separated list of SAMPLE.FORMAT to extract')
+
+    annotation_arguments = parser.add_argument_group('Annotation arguments')
+    annotation_arguments.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
+    annotation_arguments.add_argument('--max_csq', action='store_true', help='Max Consequence for each annotation')
+    annotation_arguments.add_argument('--collapse_annotations', action='store_true', help='Collapse identical annotations')
+    annotation_arguments.add_argument('--simplify', action='store_true', help='Alias for --lof_only --max_csq --collapse_annotations')
+    annotation_arguments.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
+
+    output_options = parser.add_argument_group('Output options')
+    output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
+    output_options.add_argument('--ucsc_link_window', help='Window size for UCSC link', type=int, default=20)
+    output_options.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA, for R)')
+    output_options.add_argument('--do_not_minrep', help='Skip minimal representation', action='store_true')
+
     args = parser.parse_args()
     main(args)
