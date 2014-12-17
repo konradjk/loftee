@@ -29,10 +29,6 @@ def main(args):
     desired_info = [] if args.info is None else args.info.split(',')
     desired_vep_info = [] if args.vep_info is None else args.vep_info.split(',')
     desired_sample_info = [] if args.sample_info is None else args.sample_info.split(',')
-    if args.simplify:
-        args.max_csq = True
-        args.lof_only = True
-        args.collapse_annotations = True
 
     missing_string = '\N' if args.mysql else 'NA'
 
@@ -236,7 +232,7 @@ def main(args):
                             this_alt_vep_info = this_alt_transcript_annotation[info]
 
                             # Process options
-                            if args.max_csq and info == 'Consequence': this_alt_vep_info = worst_csq_from_csq(this_alt_vep_info)
+                            if not args.all_csqs and info == 'Consequence': this_alt_vep_info = worst_csq_from_csq(this_alt_vep_info)
                             if args.simplify_gtex and info == 'TissueExpression':
                                 # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
                                 this_alt_vep_info = set([y.split(':')[0] for y in this_alt_vep_info.split('&')])
@@ -250,14 +246,14 @@ def main(args):
                         this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
                         # Process options
-                        if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
+                        if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
                         if args.simplify_gtex and info == 'TissueExpression':
                             # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
                             this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
-                        if args.collapse_annotations:
+                        if not args.dont_collapse_annotations:
                             this_alt_vep_info = set(this_alt_vep_info)
                             # Collapse consequence further
-                            if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
+                            if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
 
                         annotation_output = ','.join(this_alt_vep_info)
                         if annotation_output == '': annotation_output = missing_string
@@ -288,11 +284,10 @@ For VEP info extraction, VEP must be run with --allele_number.'''
 
     annotation_arguments = parser.add_argument_group('Annotation arguments')
     annotation_arguments.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
-    annotation_arguments.add_argument('--max_csq', action='store_true', help='Max Consequence for each annotation')
-    annotation_arguments.add_argument('--collapse_annotations', action='store_true', help='Collapse identical annotations')
-    annotation_arguments.add_argument('--simplify', action='store_true', help='Alias for --lof_only --max_csq --collapse_annotations')
     annotation_arguments.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
     annotation_arguments.add_argument('--split_by_transcript', help='Split file further into one line per transcript-allele pair', action='store_true')
+    annotation_arguments.add_argument('--dont_collapse_annotations', action='store_true', help='Do not collapse identical annotations')
+    annotation_arguments.add_argument('--all_csqs', action='store_true', help='Print all consequences for each annotation (not just max)')
 
     output_options = parser.add_argument_group('Output options')
     output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
