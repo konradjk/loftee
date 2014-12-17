@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 __author__ = 'konradjk'
 
 import argparse
@@ -184,6 +186,7 @@ def main(args):
             format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
 
         for index, alt in enumerate(alts):
+            # Get site data
             if not args.do_not_minrep and get_minimal_representation is not None:
                 new_pos, new_ref, new_alt = get_minimal_representation(fields[header['POS']], fields[header['REF']], alt)
                 output = [fields[header['CHROM']], str(new_pos), new_ref, new_alt]
@@ -195,7 +198,7 @@ def main(args):
             if args.include_id: output.append(fields[header['ID']])
             if not args.omit_filter: output.append(fields[header['FILTER']])
 
-            # Get info and VEP info
+            # Get data from INFO field
             for info in desired_info:
                 if info in info_field:
                     if info in info_from_header:
@@ -209,27 +212,8 @@ def main(args):
                         output.append(info_field[info])
                 else:
                     output.append(missing_string)
-            if len(desired_vep_info) > 0:
-                # Filter to this allele
-                this_alt_annotations = [x for x in annotations if int(x['ALLELE_NUM']) - 1 == index]
-                if args.lof_only and len(this_alt_annotations) == 0: continue
-                for info in desired_vep_info:
-                    this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
-                    # Process options
-                    if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
-                    if args.simplify_gtex and info == 'TissueExpression':
-                        # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
-                        this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
-                    if args.collapse_annotations:
-                        this_alt_vep_info = set(this_alt_vep_info)
-                        # Collapse consequence further
-                        if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
-
-                    annotation_output = ','.join(this_alt_vep_info)
-                    if annotation_output == '': annotation_output = missing_string
-                    output.append(annotation_output)
-
+            # Get data out of samples (genotype fields)
             for sample_format in desired_sample_info:
                 sample, format = sample_format.split('.')
                 if format not in format_fields: continue
@@ -239,7 +223,48 @@ def main(args):
                 else:
                     output.append(missing_string)
 
-            print >> g, '\t'.join(output)
+            # Get data out of VEP field
+            if len(desired_vep_info) > 0:
+                # Filter to this allele
+                this_alt_annotations = [x for x in annotations if int(x['ALLELE_NUM']) - 1 == index]
+                if args.lof_only and len(this_alt_annotations) == 0: continue
+
+                if args.split_by_transcript:
+                    for this_alt_transcript_annotation in this_alt_annotations:
+                        new_output = copy.deepcopy(output)
+                        for info in desired_vep_info:
+                            this_alt_vep_info = this_alt_transcript_annotation[info]
+
+                            # Process options
+                            if args.max_csq and info == 'Consequence': this_alt_vep_info = worst_csq_from_csq(this_alt_vep_info)
+                            if args.simplify_gtex and info == 'TissueExpression':
+                                # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
+                                this_alt_vep_info = set([y.split(':')[0] for y in this_alt_vep_info.split('&')])
+                                this_alt_vep_info = ','.join(this_alt_vep_info)
+
+                            if this_alt_vep_info == '': this_alt_vep_info = missing_string
+                            new_output.append(this_alt_vep_info)
+                        print >> g, '\t'.join(new_output)
+                else:
+                    for info in desired_vep_info:
+                        this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
+
+                        # Process options
+                        if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
+                        if args.simplify_gtex and info == 'TissueExpression':
+                            # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
+                            this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
+                        if args.collapse_annotations:
+                            this_alt_vep_info = set(this_alt_vep_info)
+                            # Collapse consequence further
+                            if args.max_csq and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
+
+                        annotation_output = ','.join(this_alt_vep_info)
+                        if annotation_output == '': annotation_output = missing_string
+                        output.append(annotation_output)
+                    print >> g, '\t'.join(output)
+            else:
+                print >> g, '\t'.join(output)
 
     f.close()
 
@@ -267,6 +292,7 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     annotation_arguments.add_argument('--collapse_annotations', action='store_true', help='Collapse identical annotations')
     annotation_arguments.add_argument('--simplify', action='store_true', help='Alias for --lof_only --max_csq --collapse_annotations')
     annotation_arguments.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
+    annotation_arguments.add_argument('--split_by_transcript', help='Split file further into one line per transcript-allele pair', action='store_true')
 
     output_options = parser.add_argument_group('Output options')
     output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
