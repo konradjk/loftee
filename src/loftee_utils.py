@@ -1,5 +1,6 @@
 __author__ = 'konradjk'
 from operator import itemgetter
+import re
 
 # Note that this is the current as of v77 with 2 included for backwards compatibility (VEP <= 75)
 csq_order = ["transcript_ablation",
@@ -128,3 +129,44 @@ def compare_two_consequences(csq1, csq2):
         return 0
     return 1
 
+
+def simplify_polyphen(polyphen_list):
+    """
+    Takes list of polyphen score/label pairs (e.g. ['probably_damaging(0.968)', 'benign(0.402)'])
+    Returns worst (worst label and highest score) - in this case, 'probably_damaging(0.968)'
+    """
+    max_score = 0.0
+    max_label = 'benign'
+    for polyphen in polyphen_list:
+        label, score = polyphen.rstrip(')').split('(')
+        if float(score) > max_score:
+            max_score = float(score)
+            max_label = label
+    return max_score, max_label
+
+
+def simplify_sift(sift_list):
+    """
+    Takes list of SIFT score/label pairs (e.g. ['tolerated(0.26)', 'deleterious(0)'])
+    Returns worst (worst label and highest score) - in this case, 'deleterious(0)'
+    """
+    max_score = 1.0
+    max_label = 'tolerated'
+    for sift in sift_list:
+        label, score = sift.rstrip(')').split('(')
+        if float(score) < max_score:
+            max_score = float(score)
+            max_label = label
+    return max_score, max_label
+
+POLYPHEN_SIFT_REGEX = re.compile('^[a-z]+\([0-9\.]+\)$', re.IGNORECASE)
+
+
+def simplify_polyphen_sift(input_list, type):
+    if not all([POLYPHEN_SIFT_REGEX.match(x) for x in input_list]):
+        return None
+    if type.lower() == 'polyphen':
+        return simplify_polyphen(input_list)
+    elif type.lower() == 'sift':
+        return simplify_sift(input_list)
+    raise Exception('Type is not polyphen or sift')

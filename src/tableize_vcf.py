@@ -247,6 +247,8 @@ def main(args):
 
                         # Process options
                         if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
+                        if args.functional_simplify and info in ['PolyPhen', 'SIFT']:
+                            this_alt_vep_info = "%s(%s)" % simplify_polyphen_sift(this_alt_vep_info, info)
                         if args.simplify_gtex and info == 'TissueExpression':
                             # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
                             this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
@@ -288,11 +290,12 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     annotation_arguments.add_argument('--split_by_transcript', help='Split file further into one line per transcript-allele pair', action='store_true')
     annotation_arguments.add_argument('--dont_collapse_annotations', action='store_true', help='Do not collapse identical annotations')
     annotation_arguments.add_argument('--all_csqs', action='store_true', help='Print all consequences for each annotation (not just max)')
+    annotation_arguments.add_argument('--functional_simplify', action='store_true', help='Simplify PolyPhen/SIFT down to most severe')
 
     output_options = parser.add_argument_group('Output options')
+    output_options.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA, for R)')
     output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
     output_options.add_argument('--ucsc_link_window', help='Window size for UCSC link', type=int, default=20)
-    output_options.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA, for R)')
     output_options.add_argument('--do_not_minrep', help='Skip minimal representation', action='store_true')
 
     args = parser.parse_args()
