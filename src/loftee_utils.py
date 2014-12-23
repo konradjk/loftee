@@ -142,7 +142,7 @@ def simplify_polyphen(polyphen_list):
         if float(score) > max_score:
             max_score = float(score)
             max_label = label
-    return max_score, max_label
+    return max_label, max_score
 
 
 def simplify_sift(sift_list):
@@ -157,9 +157,9 @@ def simplify_sift(sift_list):
         if float(score) < max_score:
             max_score = float(score)
             max_label = label
-    return max_score, max_label
+    return max_label, max_score
 
-POLYPHEN_SIFT_REGEX = re.compile('^[a-z]+\([0-9\.]+\)$', re.IGNORECASE)
+POLYPHEN_SIFT_REGEX = re.compile('^[a-z\_]+\([0-9\.]+\)$', re.IGNORECASE)
 
 
 def simplify_polyphen_sift(input_list, type):
