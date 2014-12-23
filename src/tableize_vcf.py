@@ -247,8 +247,6 @@ def main(args):
 
                         # Process options
                         if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
-                        if args.functional_simplify and info in ['PolyPhen', 'SIFT']:
-                            this_alt_vep_info = "%s(%s)" % simplify_polyphen_sift(this_alt_vep_info, info)
                         if args.simplify_gtex and info == 'TissueExpression':
                             # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
                             this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
@@ -256,6 +254,10 @@ def main(args):
                             this_alt_vep_info = set(this_alt_vep_info)
                             # Collapse consequence further
                             if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
+                            if args.functional_simplify and len(this_alt_vep_info) > 0 and info in ['PolyPhen', 'SIFT']:
+                                simplified = simplify_polyphen_sift(this_alt_vep_info, info)
+                                if simplified is not None:
+                                    this_alt_vep_info = ["%s(%s)" % simplified]
 
                         annotation_output = ','.join(this_alt_vep_info)
                         if annotation_output == '': annotation_output = missing_string

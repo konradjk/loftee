@@ -163,7 +163,7 @@ POLYPHEN_SIFT_REGEX = re.compile('^[a-z]+\([0-9\.]+\)$', re.IGNORECASE)
 
 
 def simplify_polyphen_sift(input_list, type):
-    if not all([POLYPHEN_SIFT_REGEX.match(x) for x in input_list]):
+    if len(input_list) == 0 or not all([POLYPHEN_SIFT_REGEX.match(x) for x in input_list]):
         return None
     if type.lower() == 'polyphen':
         return simplify_polyphen(input_list)
