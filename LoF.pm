@@ -29,6 +29,7 @@ no if $] >= 5.018, 'warnings', "experimental::smartmatch";
 our $debug;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
+use DBI;
 
 use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
 use Bio::Perl;
@@ -63,6 +64,12 @@ sub new {
     $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
     $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
     $self->{check_complete_cds} = $self->{check_complete_cds} || 'false';
+    
+    $self->{conservation_file} = $self->{conservation_file} || 'false';
+    $self->{conservation_database} = 'false';
+    if ($self->{conservation_file} ne 'false') {
+        $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
+    }
     
     $debug = $self->{debug} || 0;
     
@@ -114,6 +121,20 @@ sub run {
                 push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
             }
             push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
+        }
+        
+        if (lc($self->{conservation_file} ne 'false')) {
+            my $conservation_info = check_for_conservation($transcript_variation_allele, $self->{conservation_database});
+            if (not $conservation_info) {
+                push(@info, "PHYLOCSF_TOO_SHORT");
+            } else {
+                push(@info, 'ANN_ORF:' . $conservation_info->{corresponding_orf_score});
+                push(@info, 'MAX_ORF:' . $conservation_info->{max_score});
+                if ($conservation_info->{corresponding_orf_score} < 0) {
+                    my $flag = ($conservation_info->{max_score} > 0) ? ("PHYLOCSF_UNLIKELY_ORF") : ("PHYLOCSF_WEAK");
+                    push(@flags, $flag);
+                }
+            }
         }
     }
 
@@ -325,6 +346,20 @@ sub check_for_ancestral_allele {
     my $ancestral_allele = uc(join('', @lines));
     
     return ($ancestral_allele eq $aff_allele)
+}
+
+sub check_for_conservation {
+    my $transcript_variation_allele = shift;
+    my $conservation_db = shift;
+    my $transcript_variation = $transcript_variation_allele->transcript_variation;
+    
+    # Get exon info
+    my $transcript_id = $transcript_variation_allele->transcript_variation->transcript->stable_id();
+    my ($exon_number, $total_exons) = split /\//, ($transcript_variation->exon_number);
+    # Check if exon is conserved
+    my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_data WHERE transcript = ? AND exon_number = ?;");
+    $sql_statement->execute($transcript_id, $exon_number);
+    return $sql_statement->fetchrow_hashref;
 }
 
 1;

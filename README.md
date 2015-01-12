@@ -225,9 +225,6 @@ The LoF is a splice variant that falls in a non-canonical splice site (not GT..A
 - ANC_ALLELE
 The alternate allele of the LoF reverts the sequence back to the ancestral state.
 
-- CONSERVATION
-The LoF falls in an exon that does not exhibit a pattern of conservation typical of a protein-coding exon.
-
 Possible values for the `Lof_flags` field are:
 
 - SINGLE_EXON
@@ -235,5 +232,14 @@ The LoF falls in a single exon transcript.
 
 - NAGNAG_SITE
 The LoF is a splice variant that falls into a NAGNAG sequence, which may indicate a frame-restoring splice site.
+
+- PHYLOCSF_WEAK
+The LoF falls in an exon that does not exhibit a pattern of conservation typical of a protein-coding exon.
+
+- PHYLOCSF_UNLIKELY_ORF
+The LoF falls in an exon that exhibits a pattern of conservation typical of a protein-coding exon, but the reading frame is likely offset.
+
+- PHYLOCSF_TOO_SHORT
+The LoF falls in an exon that was too short to determine conservation status.
 
 Special thanks to Monkol Lek for the initial implementation of the software and developing many of these filters.
