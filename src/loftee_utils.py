@@ -1,6 +1,7 @@
 __author__ = 'konradjk'
 from operator import itemgetter
 import re
+import sys
 
 # Note that this is the current as of v77 with 2 included for backwards compatibility (VEP <= 75)
 csq_order = ["transcript_ablation",
@@ -170,3 +171,50 @@ def simplify_polyphen_sift(input_list, type):
     elif type.lower() == 'sift':
         return simplify_sift(input_list)
     raise Exception('Type is not polyphen or sift')
+
+
+def get_feature_from_annotation(annotation_list, key):
+    """
+    Takes list of annotation dicts and a key.
+    Returns one value of key from annotation dicts (dangerously assuming there will be one unique value of key)
+    """
+    this_set = get_set_from_annotation(annotation_list, key)
+    if len(this_set) > 1:
+        print >> sys.stderr, "WARNING: Set has more than one entry. Set was %s" % this_set
+    return list(this_set)[0]
+
+
+def get_set_from_annotation(annotation_list, key):
+    """
+    Takes list of annotation dicts and a key.
+    Returns a set of all values of that key
+    """
+    return set([x[key] for x in annotation_list])
+
+
+def filter_annotation(annotation_list, key, value=None, filter=True):
+    """
+    Returns annotation list filtered to entries where _key_ is _value_
+    Some pre-specified keys are available (canonical, lof)
+    """
+    if value is None:
+        if key.lower() == 'canonical':
+            key = 'CANONICAL'
+            value = 'YES'
+        if key.lower() == 'lof':
+            key = 'LoF'
+            value = 'HC'
+    if filter:
+        return [x for x in annotation_list if x[key] == value]
+    else:
+        return [x for x in annotation_list if x[key] != value]
+
+
+def filter_annotation_list(annotation_list, key, value_list, filter=True):
+    """
+    Returns annotation list filtered to entries where _key_ is in _value_list_
+    """
+    if filter:
+        return [x for x in annotation_list if x[key] in value_list]
+    else:
+        return [x for x in annotation_list if x[key] not in value_list]
