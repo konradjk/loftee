@@ -46,6 +46,7 @@ For splice-site variants, LOFTEE flags:
 -   >= Perl 5.10.1
 -   Ancestral sequence (human\_ancestor.fa[.rz])
 -   Samtools (must be on path)
+-   PhyloCSF database (phylocsf.sql) for conservation filters
 
 ## Usage
 
