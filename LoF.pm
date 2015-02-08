@@ -71,6 +71,7 @@ sub new {
         $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
     }
     
+    $self->{apply_all} = $self->{apply_all} || 'false';
     $debug = $self->{debug} || 0;
     
     if ($debug) {
@@ -99,14 +100,18 @@ sub run {
     unless ($transcript_variation->transcript->biotype eq "protein_coding") {
         return {};
     }
-    unless ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
-        return {};
+    my $confidence = '';
+    
+    if ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
+        $confidence = 'HC';
+    } else {
+        if (!$self->{apply_all}) {
+            return {};
+        }
     }
     
-    my $confidence = 'HC';
-    
-    # Filter out
-    if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
+    # Filter out - exonic
+    if ($transcript_variation->exon_number){
         # Positional filter
         my $position = get_position($transcript_variation, $self->{fast_length_calculation});
         push(@info, 'POSITION:' . $position);
@@ -136,9 +141,8 @@ sub run {
                 }
             }
         }
-    }
-
-    if ("splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences) {
+    } else {
+        # Intronic
         if (check_for_intron_annotation_errors($transcript_variation)) {
             push(@filters, 'EXON_INTRON_UNDEF');
         } else {
