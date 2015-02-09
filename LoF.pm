@@ -112,10 +112,12 @@ sub run {
     
     # Filter out - exonic
     if ($transcript_variation->exon_number){
-        # Positional filter
-        my $position = get_position($transcript_variation, $self->{fast_length_calculation});
-        push(@info, 'POSITION:' . $position);
-        push(@filters, 'END_TRUNC') if ($position >= 1-$self->{filter_position});
+        if ($transcript_variation->cds_end) {
+            # Positional filter
+            my $position = get_position($transcript_variation, $self->{fast_length_calculation});
+            push(@info, 'POSITION:' . $position);
+            push(@filters, 'END_TRUNC') if ($position >= 1-$self->{filter_position});
+        }
         
         if (check_for_exon_annotation_errors($transcript_variation)) {
             push(@filters, 'EXON_INTRON_UNDEF');
