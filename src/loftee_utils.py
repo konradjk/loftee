@@ -123,6 +123,25 @@ def worst_csq_with_vep(annotation_list):
     return worst
 
 
+def worst_csq_with_vep_all(annotation_list):
+    """
+    Like worst_csq_with_vep, but returns annotation list for tied annotations
+    Takes list of VEP annotations [{'Consequence': 'frameshift', Feature: 'ENST'}, ...]
+    Returns most severe annotation (as full VEP annotation [{'Consequence': 'frameshift', Feature: 'ENST'}])
+    Also tacks on worst consequence for that annotation (i.e. worst_csq_from_csq)
+    :param annotation_list:
+    :return worst_annotation:
+    """
+    if len(annotation_list) == 0: return []
+    worst = [annotation_list[0]]
+    for annotation in annotation_list:
+        if compare_two_consequences(annotation['Consequence'], worst[0]['Consequence']) < 0:
+            worst = [annotation]
+        elif compare_two_consequences(annotation['Consequence'], worst[0]['Consequence']) == 0:
+            worst.append(annotation)
+    return worst
+
+
 def compare_two_consequences(csq1, csq2):
     if csq_order_dict[worst_csq_from_csq(csq1)] < csq_order_dict[worst_csq_from_csq(csq2)]:
         return -1
