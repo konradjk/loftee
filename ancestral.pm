@@ -44,6 +44,13 @@ sub new {
 
     my $self = $class->SUPER::new(@_);
     
+    foreach my $parameter (@{$self->params}) {
+        my @param = split /:/, $parameter;
+        if (scalar @param == 2) {
+            $self->{$param[0]} = $param[1];
+        }
+    }
+    
     $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
     
     return $self;
