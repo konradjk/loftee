@@ -8,6 +8,8 @@ import re
 import sys
 from loftee_utils import *
 import copy
+import pipes
+import subprocess
 try:
     from minimal_representation import get_minimal_representation
 except ImportError, e:
@@ -16,6 +18,15 @@ except ImportError, e:
 
 
 def main(args):
+    bgzip = False
+    try:
+        subprocess.check_output(["tabix"], stderr=subprocess.STDOUT)
+    except OSError, e:
+        pass
+    except Exception, e:
+        bgzip = True
+    print >> sys.stderr, "SUCCESS: Found bgzip! Will bgzip the table." if bgzip else "WARNING: Could not find bgzip. Proceeding without..."
+
     # Read parameters
     f = gzip.open(args.vcf) if args.vcf.endswith('.gz') else open(args.vcf)
     if args.output is None:
@@ -24,7 +35,12 @@ def main(args):
         print >> sys.stderr, "VCF filename has no '.vcf' and no output file name was provided. Exiting."
         sys.exit(1)
     if not args.options:
-        g = gzip.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
+        if bgzip:
+            pipe = pipes.Template()
+            pipe.append('bgzip -c /dev/stdin', '--')
+            g = pipe.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
+        else:
+            g = gzip.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
 
     desired_info = [] if args.info is None else args.info.split(',')
     desired_vep_info = [] if args.vep_info is None else args.vep_info.split(',')
@@ -172,9 +188,11 @@ def main(args):
                 # Can be removed once that is completely fixed.
                 annotations = [dict(zip(vep_field_names, x.split('|'))) for x in info_field['CSQ'].split(',') if len(vep_field_names) == len(x.split('|'))]
                 if args.lof_only: annotations = [x for x in annotations if x['LoF'] == 'HC']
+                if args.canonical_only: annotations = [x for x in annotations if x['CANONICAL'] == 'YES']
             else:
                 annotations = []
             if args.lof_only and len(annotations) == 0: continue
+            if args.canonical_only and len(annotations) == 0: continue
 
         alts = fields[header['ALT']].split(',')
         if 'FORMAT' in header:
@@ -224,6 +242,7 @@ def main(args):
                 # Filter to this allele
                 this_alt_annotations = [x for x in annotations if int(x['ALLELE_NUM']) - 1 == index]
                 if args.lof_only and len(this_alt_annotations) == 0: continue
+                if args.canonical_only and len(this_alt_annotations) == 0: continue
 
                 if args.split_by_transcript:
                     for this_alt_transcript_annotation in this_alt_annotations:
@@ -242,6 +261,7 @@ def main(args):
                             new_output.append(this_alt_vep_info)
                         print >> g, '\t'.join(new_output)
                 else:
+                    this_alt_annotations = worst_csq_with_vep_all(this_alt_annotations)
                     for info in desired_vep_info:
                         this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
@@ -267,6 +287,9 @@ def main(args):
                 print >> g, '\t'.join(output)
 
     f.close()
+    g.close()
+    if bgzip:
+        subprocess.check_output(['tabix', '-p', 'vcf', args.output])
 
 if __name__ == '__main__':
     INFO = '''Parses VCF to extract data from INFO field, VEP annotation (CSQ from inside INFO field), or sample info.
@@ -288,6 +311,7 @@ For VEP info extraction, VEP must be run with --allele_number.'''
 
     annotation_arguments = parser.add_argument_group('Annotation arguments')
     annotation_arguments.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
+    annotation_arguments.add_argument('--canonical_only', action='store_true', help='Limit output to variants in the canonical transcript')
     annotation_arguments.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
     annotation_arguments.add_argument('--split_by_transcript', help='Split file further into one line per transcript-allele pair', action='store_true')
     annotation_arguments.add_argument('--dont_collapse_annotations', action='store_true', help='Do not collapse identical annotations')
