@@ -94,7 +94,7 @@ If this flag is set to 'false', the ancestral allele will not be checked and fil
 
 -   `phylocsf.sql`
 
-The required SQL database (gzip) can be downloaded (here)[https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz].
+The required SQL database (gzip) can be downloaded [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz).
 
 -   `check_complete_cds`
 
