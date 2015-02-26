@@ -92,6 +92,10 @@ uses bgzipped inputs for samtools faidx and downloads are available here:
 [https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi).
 If this flag is set to 'false', the ancestral allele will not be checked and filtered.
 
+-   `phylocsf.sql`
+
+The required SQL database (gzip) can be downloaded (here)[https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz].
+
 -   `check_complete_cds`
 
 The Ensembl API contains a "Complete CDS" annotation that indicates that a start and stop codon has been identified for this transcript.
