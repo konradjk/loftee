@@ -68,7 +68,12 @@ sub new {
     $self->{conservation_file} = $self->{conservation_file} || 'false';
     $self->{conservation_database} = 'false';
     if ($self->{conservation_file} ne 'false') {
-        $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
+        if ($self->{conservation_file} eq 'mysql') {
+            my $db_info = "DBI:mysql:test;mysql_read_default_group=loftee;mysql_read_default_file=~/.my.cnf";
+            $self->{conservation_database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $self->{conservation_file} . "\n";
+        } else {
+            $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
+        }
     }
     
     $self->{apply_all} = $self->{apply_all} || 'false';
