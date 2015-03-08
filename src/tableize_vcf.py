@@ -288,7 +288,7 @@ def main(args):
 
     f.close()
     g.close()
-    if bgzip:
+    if bgzip and args.output.endswith('.gz'):
         subprocess.check_output(['tabix', '-p', 'vcf', args.output])
 
 if __name__ == '__main__':
