@@ -180,6 +180,8 @@ def main(args):
         info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[header['INFO']])])
 
         if args.only_pass and fields[header['FILTER']] != 'PASS': continue
+        alts = fields[header['ALT']].split(',')
+        if args.biallelic_only and len(alts) > 1: continue
 
         # Only get VEP info if requested
         if len(desired_vep_info) > 0:
@@ -194,7 +196,6 @@ def main(args):
             if args.lof_only and len(annotations) == 0: continue
             if args.canonical_only and len(annotations) == 0: continue
 
-        alts = fields[header['ALT']].split(',')
         if 'FORMAT' in header:
             format_fields_list = fields[header['FORMAT']].split(':')
             format_fields = dict(zip(format_fields_list, range(len(format_fields_list))))
@@ -203,8 +204,10 @@ def main(args):
             # Get site data
             if not args.do_not_minrep and get_minimal_representation is not None:
                 new_pos, new_ref, new_alt = get_minimal_representation(fields[header['POS']], fields[header['REF']], alt)
+                if args.snps_only and (len(new_ref) != 1 or len(new_alt) != 1): continue
                 output = [fields[header['CHROM']], str(new_pos), new_ref, new_alt]
             else:
+                if args.snps_only and (len(fields[header['REF']]) != 1 or len(alt) != 1): continue
                 output = [fields[header['CHROM']], fields[header['POS']], fields[header['REF']], alt]
 
             ucsc_link = raw_ucsc_link % (output[0], int(output[1]) - args.ucsc_link_window, int(output[1]) + args.ucsc_link_window)
@@ -321,6 +324,8 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     output_options = parser.add_argument_group('Output options')
     output_options.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA, for R)')
     output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
+    output_options.add_argument('--snps_only', help='Only output SNPs', action='store_true')
+    output_options.add_argument('--biallelic_only', help='Only consider biallelic variants', action='store_true')
     output_options.add_argument('--ucsc_link_window', help='Window size for UCSC link', type=int, default=20)
     output_options.add_argument('--do_not_minrep', help='Skip minimal representation', action='store_true')
 
