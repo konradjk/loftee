@@ -70,7 +70,7 @@ sub new {
     if ($self->{conservation_file} ne 'false') {
         if ($self->{conservation_file} eq 'mysql') {
             my $db_info = "DBI:mysql:mysql_read_default_group=loftee;mysql_read_default_file=~/.my.cnf";
-            $self->{conservation_database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $self->{conservation_file} . "\n";
+            $self->{conservation_database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $db_info . "\n";
         } else {
             $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
         }
