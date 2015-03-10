@@ -95,6 +95,17 @@ If this flag is set to 'false', the ancestral allele will not be checked and fil
 -   `phylocsf.sql`
 
 The required SQL database (gzip) can be downloaded [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz).
+Alternatively, this can be loaded into MySQL by downloading the source file [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data.tsv.gz)
+and loaded into MySQL with the schema available [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data_schema.sql).
+You will then need to create a \[loftee\] entry in your `~/.my.cnf` (creating one if it does not exist) that looks like:
+
+<pre>
+[loftee]
+host=your_mysql_host
+user=your_mysql_user
+password=your_mysql_pass
+database=your_mysql_db
+</pre>
 
 -   `check_complete_cds`
 
