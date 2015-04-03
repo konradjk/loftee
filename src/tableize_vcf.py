@@ -52,6 +52,7 @@ def main(args):
     vep_field_names = None
     info_from_header = {}
     started = False
+    last_chr = ''
 
     output_header = 'CHROM\tPOS\tREF\tALT'
     if args.add_ucsc_link: output_header += '\tUCSC'
@@ -288,11 +289,19 @@ def main(args):
                     print >> g, '\t'.join(output)
             else:
                 print >> g, '\t'.join(output)
-
+            chrom = fields[header['CHROM']]
+            if chrom != last_chr:
+                last_chr = chrom
+                print >> sys.stderr, "%s." % chrom,
+    print >> sys.stderr
     f.close()
     g.close()
     if bgzip and args.output.endswith('.gz'):
-        subprocess.check_output(['tabix', '-p', 'vcf', args.output])
+        try:
+            subprocess.check_output(['tabix', '-p', 'vcf', args.output])
+        except Exception, e:
+            print >> sys.stderr, "WARNING: Tabix of table failed - perhaps original VCF was out of order, or minrepping put this out of order."
+    print >> sys.stderr, "Done!"
 
 if __name__ == '__main__':
     INFO = '''Parses VCF to extract data from INFO field, VEP annotation (CSQ from inside INFO field), or sample info.
