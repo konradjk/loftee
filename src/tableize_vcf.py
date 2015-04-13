@@ -180,7 +180,7 @@ def main(args):
 
             # Pull out annotation info from INFO and ALT fields
             fields = line.split('\t')
-            info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[header['INFO']])])
+            info_field = dict([(x.split('=', 1)) if '=' in x else (x, x) for x in re.split(';(?=\w)', fields[header['INFO']].replace('"', ''))])
 
             if args.only_pass and fields[header['FILTER']] != 'PASS': continue
             alts = fields[header['ALT']].split(',')
