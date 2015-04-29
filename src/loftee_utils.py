@@ -17,6 +17,7 @@ csq_order = ["transcript_ablation",
 "missense_variant",
 "splice_region_variant",
 "incomplete_terminal_codon_variant",
+"protein_altering_variant",  # new in v79 - appears to go here?
 "stop_retained_variant",
 "synonymous_variant",
 "coding_sequence_variant",
@@ -45,23 +46,6 @@ csq_order_dict = dict(zip(csq_order, range(len(csq_order))))
 rev_csq_order_dict = dict(zip(range(len(csq_order)), csq_order))
 
 
-def csq_max_compare_lists(ann1, ann2):
-    return rev_csq_order_dict[min(csq_max_list(ann1), csq_max_list(ann2))]
-
-
-def csq_max_vep(ann_list):
-    return rev_csq_order_dict[csq_max_list(ann_list.split('&'))]
-
-
-def csq_max(ann_list):
-    if len(ann_list) == 0: return ''
-    return rev_csq_order_dict[csq_max_list(ann_list)]
-
-
-def csq_max_list(ann_list):
-    return min([csq_order_dict[ann] for ann in ann_list])
-
-
 def worst_csq_index(csq_list):
     """
     Input list of consequences (e.g. ['frameshift_variant', 'missense_variant'])
@@ -71,7 +55,8 @@ def worst_csq_index(csq_list):
     :param annnotation:
     :return most_severe_consequence_index:
     """
-    return min([csq_order_dict[ann] for ann in csq_list])
+    csqs = [csq_order_dict[ann] for ann in csq_list if ann in csq_order_dict]
+    return min()
 
 
 def worst_csq_from_list(csq_list):

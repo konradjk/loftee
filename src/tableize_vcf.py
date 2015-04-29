@@ -172,7 +172,7 @@ def main(args):
                     sys.exit(1)
 
                 # Ready to go.
-                output_header += '\t' + '\t'.join(desired_info)
+                if len(desired_info) > 0: output_header += '\t' + '\t'.join(desired_info)
                 if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
                 if len(desired_sample_info) > 0: output_header += '\t' + '\t'.join(desired_sample_info)
                 print >> g, output_header
@@ -273,14 +273,14 @@ def main(args):
                             this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
                             # Process options
-                            if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max_vep(x) for x in this_alt_vep_info]
+                            if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [worst_csq_from_csq(x) for x in this_alt_vep_info]
                             if args.simplify_gtex and info == 'TissueExpression':
                                 # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
                                 this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
                             if not args.dont_collapse_annotations:
                                 this_alt_vep_info = set(this_alt_vep_info)
                                 # Collapse consequence further
-                                if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [csq_max(this_alt_vep_info)]
+                                if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [worst_csq_from_list(this_alt_vep_info)]
                                 if args.functional_simplify and len(this_alt_vep_info) > 0 and info in ['PolyPhen', 'SIFT']:
                                     simplified = simplify_polyphen_sift(this_alt_vep_info, info)
                                     if simplified is not None:
