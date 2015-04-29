@@ -55,8 +55,7 @@ def worst_csq_index(csq_list):
     :param annnotation:
     :return most_severe_consequence_index:
     """
-    csqs = [csq_order_dict[ann] for ann in csq_list if ann in csq_order_dict]
-    return min()
+    return min([csq_order_dict[ann] for ann in csq_list])
 
 
 def worst_csq_from_list(csq_list):
