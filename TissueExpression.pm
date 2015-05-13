@@ -58,7 +58,12 @@ sub new {
     $self->{db_location} = $self->{db_location} || 'gtex.db';
     $self->{tissues} = $self->{tissues} || 'all';
     $self->{expressed_cutoff} = $self->{expressed_cutoff} || 0.1;
-    $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
+    if ($self->{db_location} eq 'mysql') {
+        my $db_info = "DBI:mysql:mysql_read_default_group=loftee;mysql_read_default_file=~/.my.cnf";
+        $self->{database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $db_info . "\n";
+    } else {
+        $self->{database} = DBI->connect("dbi:SQLite:dbname=" . $self->{db_location}, "", "") or die "Cannot find gtex.db\n";
+    }
     $self->{tissues_only} = $self->{tissues_only} || 'false';
     
     if ($debug) {

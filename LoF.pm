@@ -110,7 +110,7 @@ sub run {
     if ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
         $confidence = 'HC';
     } else {
-        if (!$self->{apply_all}) {
+        if ($self->{apply_all} ne 'false') {
             return {};
         }
     }
@@ -369,7 +369,7 @@ sub check_for_conservation {
     my ($exon_number, $total_exons) = split /\//, ($transcript_variation->exon_number);
     # Check if exon is conserved
     my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_data WHERE transcript = ? AND exon_number = ?;");
-    $sql_statement->execute($transcript_id, $exon_number);
+    $sql_statement->execute($transcript_id, $exon_number) or die("MySQL ERROR: $!");
     return $sql_statement->fetchrow_hashref;
 }
 
