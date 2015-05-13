@@ -110,7 +110,7 @@ sub run {
     if ("stop_gained" ~~ @consequences || "splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences || "frameshift_variant" ~~ @consequences) {
         $confidence = 'HC';
     } else {
-        if ($self->{apply_all} ne 'false') {
+        if ($self->{apply_all} eq 'false') {
             return {};
         }
     }
