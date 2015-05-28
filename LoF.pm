@@ -176,6 +176,13 @@ sub run {
     return { LoF => $confidence, LoF_filter => join(',', @filters), LoF_flags => join(',', @flags), LoF_info => join(',', @info) };
 }
 
+sub DESTROY {
+    my $self = shift;
+    if ($self->{conservation_file} eq 'mysql') {
+        $self->{conservation_database}->disconnect();
+    }
+}
+
 # Global functions
 sub small_intron {
     my $transcript_variation = shift;
