@@ -115,6 +115,11 @@ sub run {
         }
     }
     
+    my $exon_defined = 1;
+    if (check_for_exon_annotation_errors($transcript_variation)) {
+        $exon_defined = 0;
+        push(@filters, 'EXON_INTRON_UNDEF');
+    }
     # Filter out - exonic
     if ($transcript_variation->exon_number){
         if ($transcript_variation->cds_end) {
@@ -124,15 +129,15 @@ sub run {
             push(@filters, 'END_TRUNC') if ($position >= 1-$self->{filter_position});
         }
         
-        if (check_for_exon_annotation_errors($transcript_variation)) {
-            push(@filters, 'EXON_INTRON_UNDEF');
-        } elsif (check_for_single_exon($transcript_variation)) {
-            push(@flags, 'SINGLE_EXON');
-        } else {
-            if (lc($self->{check_complete_cds}) eq 'true') {
-                push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
+        if ($exon_defined) {
+            if (check_for_single_exon($transcript_variation)) {
+                push(@flags, 'SINGLE_EXON');
+            } else {
+                if (lc($self->{check_complete_cds}) eq 'true') {
+                    push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
+                }
+                push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
             }
-            push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
         }
         
         if (lc($self->{conservation_file} ne 'false')) {
@@ -148,11 +153,10 @@ sub run {
                 }
             }
         }
-    } else {
+    } 
+    if ($transcript_variation->intron_number){
         # Intronic
-        if (check_for_intron_annotation_errors($transcript_variation)) {
-            push(@filters, 'EXON_INTRON_UNDEF');
-        } else {
+        if ($exon_defined) {
             # Intron size filter
             my $intron_size = get_intron_size($transcript_variation);
             push(@info, 'INTRON_SIZE:' . $intron_size);
@@ -377,7 +381,9 @@ sub check_for_conservation {
     # Check if exon is conserved
     my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_data WHERE transcript = ? AND exon_number = ?;");
     $sql_statement->execute($transcript_id, $exon_number) or die("MySQL ERROR: $!");
-    return $sql_statement->fetchrow_hashref;
+    my $results = $sql_statement->fetchrow_hashref;
+    $sql_statement->finish();
+    return $results;
 }
 
 1;
