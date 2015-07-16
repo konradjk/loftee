@@ -10,6 +10,7 @@ from loftee_utils import *
 import copy
 import pipes
 import subprocess
+from pprint import pprint
 try:
     from minimal_representation import get_minimal_representation
 except ImportError, e:
@@ -80,8 +81,8 @@ def main(args):
                     vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
                     vep_info_from_header = dict(zip(vep_field_names, range(len(vep_field_names))))
                 if line.startswith('CHROM'):
-                    header = line.split()
-                    header = dict(zip(header, range(len(header))))
+                    header_list = line.split()
+                    header = dict(zip(header_list, range(len(header_list))))
                     if args.options:
                         print >> sys.stderr, "######### OPTIONS FOR INFO #########"
                         for info in info_from_header:
@@ -173,8 +174,9 @@ def main(args):
 
                 # Ready to go.
                 if len(desired_info) > 0: output_header += '\t' + '\t'.join(desired_info)
-                if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
                 if len(desired_sample_info) > 0: output_header += '\t' + '\t'.join(desired_sample_info)
+                if args.samples: output_header += '\tSAMPLES'
+                if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
                 print >> g, output_header
                 started = True
 
@@ -221,18 +223,19 @@ def main(args):
 
                 # Get data from INFO field
                 for info in desired_info:
+                    this_output = missing_string
                     if info in info_field:
                         if info in info_from_header:
                             if 'Number' in info_from_header[info] and info_from_header[info]['Number'] == 'A':
-                                output.append(info_field[info].split(',')[index])
+                                this_output = info_field[info].split(',')[index]
                             elif 'Number' in info_from_header[info] and info_from_header[info]['Number'] == '0':
-                                output.append(info)
+                                this_output = info
                             else:
-                                output.append(info_field[info])
+                                this_output = info_field[info]
                         else:
-                            output.append(info_field[info])
-                    else:
-                        output.append(missing_string)
+                            this_output = info_field[info]
+                    if this_output == '' or this_output == '.': this_output = missing_string
+                    output.append(this_output)
 
                 # Get data out of samples (genotype fields)
                 for sample_format in desired_sample_info:
@@ -243,6 +246,9 @@ def main(args):
                         output.append(this_sample_format[format])
                     else:
                         output.append(missing_string)
+
+                if args.samples:
+                    output.append(','.join([header_list[i + 9] for i, x in enumerate(fields[9:]) if str(index + 1) in x.split(':')[0].split('/')]))
 
                 # Get data out of VEP field
                 if len(desired_vep_info) > 0:
@@ -264,11 +270,56 @@ def main(args):
                                     this_alt_vep_info = set([y.split(':')[0] for y in this_alt_vep_info.split('&')])
                                     this_alt_vep_info = ','.join(this_alt_vep_info)
 
-                                if this_alt_vep_info == '': this_alt_vep_info = missing_string
+                                if this_alt_vep_info == '' or this_alt_vep_info == '.': this_alt_vep_info = missing_string
                                 new_output.append(this_alt_vep_info)
                             print >> g, '\t'.join(new_output)
+                    elif args.split_by_gene:
+                        for gene in get_set_from_annotation(this_alt_annotations, 'Gene'):
+                            # Pre-filtering to worst annotations for this gene
+                            this_alt_gene_annotations = worst_csq_with_vep_all(filter_annotation(this_alt_annotations, 'Gene', gene))
+                            try:
+                                if any([x['LoF'] == 'HC' for x in this_alt_gene_annotations]):
+                                    this_alt_gene_annotations = filter_annotation(this_alt_gene_annotations, 'LoF')
+                                elif any([x['LoF'] == 'LC' for x in this_alt_gene_annotations]):
+                                    this_alt_gene_annotations = filter_annotation(this_alt_gene_annotations, 'LoF', 'LC')
+                            except KeyError:
+                                pass
+                            new_output = copy.deepcopy(output)
+                            for info in desired_vep_info:
+                                this_alt_vep_info = [x[info] for x in this_alt_gene_annotations if x[info] != '']
+
+                                # Process options
+                                if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [worst_csq_from_csq(x) for x in this_alt_vep_info]
+                                if args.simplify_gtex and info == 'TissueExpression':
+                                    # Converting from tissue1:value1&tissue2:value2 to [tissue1, tissue2]
+                                    this_alt_vep_info = set([y.split(':')[0] for x in this_alt_vep_info for y in x.split('&')])
+                                if not args.dont_collapse_annotations:
+                                    this_alt_vep_info = set(this_alt_vep_info)
+                                    # Collapse consequence further
+                                    if not args.all_csqs and info == 'Consequence': this_alt_vep_info = [worst_csq_from_list(this_alt_vep_info)]
+                                    if args.functional_simplify and len(this_alt_vep_info) > 0 and info in ['PolyPhen', 'SIFT']:
+                                        simplified = simplify_polyphen_sift(this_alt_vep_info, info)
+                                        if simplified is not None:
+                                            this_alt_vep_info = ["%s(%s)" % simplified]
+
+                                annotation_output = ','.join(this_alt_vep_info)
+                                if annotation_output == '' or annotation_output == '.': annotation_output = missing_string
+                                new_output.append(annotation_output)
+                            print >> g, '\t'.join(new_output)
                     else:
+                        # Pre-filtering to worst annotations
+                        print 'starting with:'
+                        pprint(this_alt_annotations)
                         this_alt_annotations = worst_csq_with_vep_all(this_alt_annotations)
+                        print 'got:'
+                        pprint(this_alt_annotations)
+                        try:
+                            if any([x['LoF'] == 'HC' for x in this_alt_annotations]):
+                                this_alt_annotations = filter_annotation(this_alt_annotations, 'LoF')
+                            elif any([x['LoF'] == 'LC' for x in this_alt_annotations]):
+                                this_alt_annotations = filter_annotation(this_alt_annotations, 'LoF', 'LC')
+                        except KeyError:
+                            pass
                         for info in desired_vep_info:
                             this_alt_vep_info = [x[info] for x in this_alt_annotations if x[info] != '']
 
@@ -287,7 +338,7 @@ def main(args):
                                         this_alt_vep_info = ["%s(%s)" % simplified]
 
                             annotation_output = ','.join(this_alt_vep_info)
-                            if annotation_output == '': annotation_output = missing_string
+                            if annotation_output == '' or annotation_output == '.': annotation_output = missing_string
                             output.append(annotation_output)
                         print >> g, '\t'.join(output)
                 else:
@@ -327,12 +378,14 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     include_arguments.add_argument('--info', help='Comma separated list of INFO fields to extract (regex allowed)')
     include_arguments.add_argument('--vep_info', help='Comma separated list of CSQ sub-fields to extract (regex allowed)')
     include_arguments.add_argument('--sample_info', help='Comma separated list of SAMPLE.FORMAT to extract')
+    include_arguments.add_argument('--samples', help='Get list of variants with each particular allele', action='store_true')
 
     annotation_arguments = parser.add_argument_group('Annotation arguments')
     annotation_arguments.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
     annotation_arguments.add_argument('--canonical_only', action='store_true', help='Limit output to variants in the canonical transcript')
     annotation_arguments.add_argument('--simplify_gtex', action='store_true', help='Simplify GTEx info (only print expressed tissues, not expression values)')
     annotation_arguments.add_argument('--split_by_transcript', help='Split file further into one line per transcript-allele pair', action='store_true')
+    annotation_arguments.add_argument('--split_by_gene', help='Split file further into one line per gene-allele pair', action='store_true')
     annotation_arguments.add_argument('--dont_collapse_annotations', action='store_true', help='Do not collapse identical annotations')
     annotation_arguments.add_argument('--all_csqs', action='store_true', help='Print all consequences for each annotation (not just max)')
     annotation_arguments.add_argument('--functional_simplify', action='store_true', help='Simplify PolyPhen/SIFT down to most severe')
