@@ -115,13 +115,8 @@ sub run {
         }
     }
     
-    my $exon_defined = 1;
-    if (check_for_exon_annotation_errors($transcript_variation)) {
-        $exon_defined = 0;
-        push(@filters, 'EXON_INTRON_UNDEF');
-    }
     # Filter out - exonic
-    if ($transcript_variation->exon_number){
+    if ("stop_gained" ~~ @consequences || "frameshift_variant" ~~ @consequences){
         if ($transcript_variation->cds_end) {
             # Positional filter
             my $position = get_position($transcript_variation, $self->{fast_length_calculation});
@@ -129,15 +124,15 @@ sub run {
             push(@filters, 'END_TRUNC') if ($position >= 1-$self->{filter_position});
         }
         
-        if ($exon_defined) {
-            if (check_for_single_exon($transcript_variation)) {
-                push(@flags, 'SINGLE_EXON');
-            } else {
-                if (lc($self->{check_complete_cds}) eq 'true') {
-                    push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
-                }
-                push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
+        if (check_for_exon_annotation_errors($transcript_variation)) {
+            push(@filters, 'EXON_INTRON_UNDEF');
+        } elsif (check_for_single_exon($transcript_variation)) {
+            push(@flags, 'SINGLE_EXON');
+        } else {
+            if (lc($self->{check_complete_cds}) eq 'true') {
+                push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($transcript_variation));
             }
+            push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($transcript_variation, $self->{min_intron_size}));
         }
         
         if (lc($self->{conservation_file} ne 'false')) {
@@ -154,9 +149,10 @@ sub run {
             }
         }
     } 
-    if ($transcript_variation->intron_number){
-        # Intronic
-        if ($exon_defined) {
+    if ("splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences) {
+        if (check_for_intron_annotation_errors($transcript_variation)) {
+            push(@filters, 'EXON_INTRON_UNDEF');
+        } else {
             # Intron size filter
             my $intron_size = get_intron_size($transcript_variation);
             push(@info, 'INTRON_SIZE:' . $intron_size);
