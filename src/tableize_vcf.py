@@ -10,7 +10,6 @@ from loftee_utils import *
 import copy
 import pipes
 import subprocess
-from pprint import pprint
 try:
     from minimal_representation import get_minimal_representation
 except ImportError, e:
@@ -308,11 +307,7 @@ def main(args):
                             print >> g, '\t'.join(new_output)
                     else:
                         # Pre-filtering to worst annotations
-                        print 'starting with:'
-                        pprint(this_alt_annotations)
                         this_alt_annotations = worst_csq_with_vep_all(this_alt_annotations)
-                        print 'got:'
-                        pprint(this_alt_annotations)
                         try:
                             if any([x['LoF'] == 'HC' for x in this_alt_annotations]):
                                 this_alt_annotations = filter_annotation(this_alt_annotations, 'LoF')
