@@ -372,7 +372,7 @@ sub check_for_conservation {
     my $transcript_variation = $transcript_variation_allele->transcript_variation;
     
     # Get exon info
-    my $transcript_id = $transcript_variation_allele->transcript_variation->transcript->stable_id();
+    my $transcript_id = $transcript_variation->transcript->stable_id();
     my ($exon_number, $total_exons) = split /\//, ($transcript_variation->exon_number);
     # Check if exon is conserved
     my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_data WHERE transcript = ? AND exon_number = ?;");

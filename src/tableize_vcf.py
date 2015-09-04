@@ -224,15 +224,14 @@ def main(args):
                 for info in desired_info:
                     this_output = missing_string
                     if info in info_field:
-                        if info in info_from_header:
-                            if 'Number' in info_from_header[info] and info_from_header[info]['Number'] == 'A':
+                        this_output = info_field[info]
+                        if info in info_from_header and 'Number' in info_from_header[info]:
+                            if info_from_header[info]['Number'] == 'A':
                                 this_output = info_field[info].split(',')[index]
-                            elif 'Number' in info_from_header[info] and info_from_header[info]['Number'] == '0':
+                            elif info_from_header[info]['Number'] == 'R':
+                                this_output = info_field[info].split(',')[index + 1]
+                            elif info_from_header[info]['Number'] == '0':
                                 this_output = info
-                            else:
-                                this_output = info_field[info]
-                        else:
-                            this_output = info_field[info]
                     if this_output == '' or this_output == '.': this_output = missing_string
                     output.append(this_output)
 
