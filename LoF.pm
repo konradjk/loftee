@@ -62,7 +62,7 @@ sub new {
     $self->{filter_position} = $self->{filter_position} || 0.05;
     $self->{min_intron_size} = $self->{min_intron_size} || 15;
     $self->{fast_length_calculation} = $self->{fast_length_calculation} || 'fast';
-    $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'human_ancestor.fa.rz';
+    $self->{human_ancestor_fa} = $self->{human_ancestor_fa} || 'false';
     $self->{check_complete_cds} = $self->{check_complete_cds} || 'false';
     
     $self->{conservation_file} = $self->{conservation_file} || 'false';
