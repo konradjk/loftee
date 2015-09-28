@@ -175,6 +175,7 @@ def main(args):
                 if len(desired_info) > 0: output_header += '\t' + '\t'.join(desired_info)
                 if len(desired_sample_info) > 0: output_header += '\t' + '\t'.join(desired_sample_info)
                 if args.samples: output_header += '\tSAMPLES'
+                if args.hom_samples: output_header += '\tHOM_SAMPLES'
                 if len(desired_vep_info) > 0: output_header += '\t' + '\t'.join(desired_vep_info)
                 print >> g, output_header
                 started = True
@@ -247,6 +248,9 @@ def main(args):
 
                 if args.samples:
                     output.append(','.join([header_list[i + 9] for i, x in enumerate(fields[9:]) if str(index + 1) in x.split(':')[0].split('/')]))
+
+                if args.hom_samples:
+                    output.append(','.join([header_list[i + 9] for i, x in enumerate(fields[9:]) if all([str(index + 1) == y for y in x.split(':')[0].split('/')])]))
 
                 # Get data out of VEP field
                 if len(desired_vep_info) > 0:
@@ -373,6 +377,7 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     include_arguments.add_argument('--vep_info', help='Comma separated list of CSQ sub-fields to extract (regex allowed)')
     include_arguments.add_argument('--sample_info', help='Comma separated list of SAMPLE.FORMAT to extract')
     include_arguments.add_argument('--samples', help='Get list of variants with each particular allele', action='store_true')
+    include_arguments.add_argument('--hom_samples', help='Get list of variants with each particular allele (hom)', action='store_true')
 
     annotation_arguments = parser.add_argument_group('Annotation arguments')
     annotation_arguments.add_argument('--lof_only', action='store_true', help='Limit output to HC LoF')
