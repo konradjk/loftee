@@ -35,13 +35,19 @@ def main(args):
     if args.output == args.vcf:
         print >> sys.stderr, "VCF filename has no '.vcf' and no output file name was provided. Exiting."
         sys.exit(1)
+    if args.split_size is not None:
+        if '.table.gz' not in args.output: print >> sys.stderr, "Output filename has no '.table.gz' extension. Adding and proceeding..."
+        args.output = args.output.rsplit('.table.gz', 1)[0] + '_%05d.table.gz'
+        output_file = args.output % 0
+    else:
+        output_file = args.output
     if not args.options:
         if bgzip:
             pipe = pipes.Template()
             pipe.append('bgzip -c /dev/stdin', '--')
-            g = pipe.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
         else:
-            g = gzip.open(args.output, 'w') if args.output.endswith('.gz') else open(args.output, 'w')
+            pipe = gzip
+        g = pipe.open(output_file, 'w') if output_file.endswith('.gz') else open(output_file, 'w')
 
     desired_info = [] if args.info is None else args.info.split(',')
     desired_vep_info = [] if args.vep_info is None else args.vep_info.split(',')
@@ -55,7 +61,7 @@ def main(args):
     started = False
     last_chr = ''
 
-    log = open(args.output + '.log', 'w')
+    log = open(output_file + '.log', 'w')
     print >> log, 'Running file: %s' % args.vcf
     print >> log, 'Started at: %s' % time.strftime("%Y_%m_%d_%H_%M_%S")
     print >> log, '\n'.join(['--%s %s' % (k, v) for k, v in args.__dict__.iteritems()])
@@ -69,6 +75,8 @@ def main(args):
 
     raw_ucsc_link = 'http://genome.ucsc.edu/cgi-bin/hgTracks?db=hg19&position=chr%s:%s-%s'
 
+    num_lines = 0
+    file_no = 0
     for line in f:
         try:
             line = line.strip()
@@ -282,6 +290,7 @@ def main(args):
                                 if this_alt_vep_info == '' or this_alt_vep_info == '.': this_alt_vep_info = missing_string
                                 new_output.append(this_alt_vep_info)
                             print >> g, '\t'.join(new_output)
+                            num_lines += 1
                     elif args.split_by_gene:
                         for gene in get_set_from_annotation(this_alt_annotations, 'Gene'):
                             # Pre-filtering to worst annotations for this gene
@@ -315,6 +324,7 @@ def main(args):
                                 if annotation_output == '' or annotation_output == '.': annotation_output = missing_string
                                 new_output.append(annotation_output)
                             print >> g, '\t'.join(new_output)
+                            num_lines += 1
                     else:
                         # Pre-filtering to worst annotations
                         this_alt_annotations = worst_csq_with_vep_all(this_alt_annotations)
@@ -346,9 +356,19 @@ def main(args):
                             if annotation_output == '' or annotation_output == '.': annotation_output = missing_string
                             output.append(annotation_output)
                         print >> g, '\t'.join(output)
+                        num_lines += 1
                 else:
                     print >> g, '\t'.join(output)
+                    num_lines += 1
                 chrom = fields[header['CHROM']]
+                if args.split_size >= num_lines:
+                    file_no += 1
+                    num_lines = 0
+                    g.close()
+                    output_file = args.output % file_no
+                    g = pipe.open(output_file, 'w') if output_file.endswith('.gz') else open(output_file, 'w')
+                    print >> g, output_header
+
                 if chrom != last_chr:
                     last_chr = chrom
                     print >> sys.stderr, "%s." % chrom,
@@ -358,7 +378,7 @@ def main(args):
     print >> sys.stderr
     f.close()
     g.close()
-    if bgzip and args.output.endswith('.gz'):
+    if args.split_size is None and bgzip and args.output.endswith('.gz'):
         try:
             subprocess.check_output(['tabix', '-p', 'vcf', args.output])
         except Exception, e:
@@ -397,6 +417,7 @@ For VEP info extraction, VEP must be run with --allele_number.'''
     annotation_arguments.add_argument('--functional_simplify', action='store_true', help='Simplify PolyPhen/SIFT down to most severe')
 
     output_options = parser.add_argument_group('Output options')
+    output_options.add_argument('--split_size', '-s', help='Split into chunks of this size', type=int, nargs='?', const=1, default=None)
     output_options.add_argument('--mysql', action='store_true', help='Uses \N for missing data for easy reading into MySQL (default = NA, for R)')
     output_options.add_argument('--only_pass', help='Only consider PASS variants', action='store_true')
     output_options.add_argument('--snps_only', help='Only output SNPs', action='store_true')
