@@ -361,7 +361,7 @@ def main(args):
                     print >> g, '\t'.join(output)
                     num_lines += 1
                 chrom = fields[header['CHROM']]
-                if args.split_size >= num_lines:
+                if args.split_size <= num_lines:
                     file_no += 1
                     num_lines = 0
                     g.close()
