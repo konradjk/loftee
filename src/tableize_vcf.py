@@ -10,6 +10,7 @@ from loftee_utils import *
 import copy
 import pipes
 import subprocess
+import time
 try:
     from minimal_representation import get_minimal_representation
 except ImportError, e:
@@ -53,6 +54,12 @@ def main(args):
     info_from_header = {}
     started = False
     last_chr = ''
+
+    log = open(args.output + '.log', 'w')
+    print >> log, 'Running file: %s' % args.vcf
+    print >> log, 'Started at: %s' % time.strftime("%Y_%m_%d_%H_%M_%S")
+    print >> log, '\n'.join(['--%s %s' % (k, v) for k, v in args.__dict__.iteritems()])
+    log.close()
 
     output_header = 'CHROM\tPOS\tREF\tALT'
     if args.add_ucsc_link: output_header += '\tUCSC'
