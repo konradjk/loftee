@@ -37,7 +37,7 @@ def main(args):
         sys.exit(1)
     if args.split_size is not None:
         if '.table.gz' not in args.output: print >> sys.stderr, "Output filename has no '.table.gz' extension. Adding and proceeding..."
-        args.output = args.output.rsplit('.table.gz', 1)[0] + '_%05d.table.gz'
+        args.output = args.output.rsplit('.table.gz', 1)[0] + '_%04d.table.gz'
         output_file = args.output % 0
     else:
         output_file = args.output
@@ -361,7 +361,7 @@ def main(args):
                     print >> g, '\t'.join(output)
                     num_lines += 1
                 chrom = fields[header['CHROM']]
-                if args.split_size <= num_lines:
+                if args.split_size is not None and args.split_size <= num_lines:
                     file_no += 1
                     num_lines = 0
                     g.close()
@@ -373,6 +373,8 @@ def main(args):
                     last_chr = chrom
                     print >> sys.stderr, "%s." % chrom,
         except Exception, e:
+            import traceback
+            traceback.print_exc()
             print >> sys.stderr, "FAILED ON LINE: %s" % line
             raise e
     print >> sys.stderr
