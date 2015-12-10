@@ -21,6 +21,7 @@
 =cut
 
 package LoF;
+require "splice_module.pl";
 
 use strict;
 use warnings;
@@ -156,9 +157,10 @@ sub run {
             # Intron size filter
             my $intron_size = get_intron_size($transcript_variation);
             push(@info, 'INTRON_SIZE:' . $intron_size);
-            push(@filters, 'SMALL_INTRON') if ($intron_size < $self->{min_intron_size});
-            
+            push(@filters, 'SMALL_INTRON') if ($intron_size < $self->{min_intron_size});           
             push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($transcript_variation));
+            push(@filters, '5UTR_SPLICE') if (check_5UTR_splice($transcript_variation, $variation_feature));
+            push(@filters, '3UTR_SPLICE') if (check_3UTR_splice($transcript_variation, $variation_feature));
             if ("splice_acceptor_variant" ~~ @consequences) {
                 push(@flags, 'NAGNAG_SITE') if (check_nagnag_variant($transcript_variation, $variation_feature));
             }
