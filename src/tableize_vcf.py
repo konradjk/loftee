@@ -95,7 +95,7 @@ def main(args):
                     vep_field_names = line.split('Format: ')[-1].strip('">').split('|')
                     vep_info_from_header = dict(zip(vep_field_names, range(len(vep_field_names))))
                 if line.startswith('CHROM'):
-                    header_list = line.split()
+                    header_list = line.split('\t')
                     header = dict(zip(header_list, range(len(header_list))))
                     if args.options:
                         print >> sys.stderr, "######### OPTIONS FOR INFO #########"

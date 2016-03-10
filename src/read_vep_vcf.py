@@ -5,6 +5,7 @@ import gzip
 import re
 import sys
 
+
 def main(args):
     f = gzip.open(args.vcf) if args.vcf.endswith('.gz') else open(args.vcf)
     vep_field_names = None
