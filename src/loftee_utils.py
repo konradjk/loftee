@@ -3,7 +3,7 @@ from operator import itemgetter
 import re
 import sys
 
-# Note that this is the current as of v77 with 2 included for backwards compatibility (VEP <= 75)
+# Note that this is the current as of v81 with some included for backwards compatibility (VEP <= 75)
 csq_order = ["transcript_ablation",
 "splice_acceptor_variant",
 "splice_donor_variant",
@@ -144,10 +144,10 @@ def simplify_polyphen(polyphen_list):
     Returns worst (worst label and highest score) - in this case, 'probably_damaging(0.968)'
     """
     max_score = 0.0
-    max_label = 'benign'
+    max_label = 'unknown'
     for polyphen in polyphen_list:
         label, score = polyphen.rstrip(')').split('(')
-        if float(score) > max_score:
+        if float(score) >= max_score and label != 'unknown':
             max_score = float(score)
             max_label = label
     return max_label, max_score
