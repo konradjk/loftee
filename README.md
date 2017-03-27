@@ -92,7 +92,7 @@ uses bgzipped inputs for samtools faidx and downloads are available here:
 [https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi).
 If this flag is set to 'false', the ancestral allele will not be checked and filtered.
 
--   `phylocsf.sql`
+-   `conservation_file`
 
 The required SQL database (gzip) can be downloaded [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz).
 Alternatively, this can be loaded into MySQL by downloading the source file [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data.tsv.gz)
