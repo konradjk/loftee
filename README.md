@@ -23,6 +23,7 @@ For splice-site variants, LOFTEE removes:
 
 -   Variants in small introns (min_intron_size; default = 15 bp)
 -   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
+-   Variants that are "rescued" by nearby, in-frame splice sites (max_scan_distance determines distance from original splice site where rescue splice sites can occur; default = 15 bp)
 
 For all variants, LOFTEE removes:
 
@@ -39,6 +40,14 @@ For stop-gained and frameshift variants, LOFTEE flags:
 For splice-site variants, LOFTEE flags:
 
 -   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
+
+### Predictions of splice-altering variants
+
+LOFTEE makes predictions of variants that cause LoF by disrupting normal splicing patterns.
+
+For variants that occur in the extended (but not essential) splice sites, LOFTEE uses logistic regression models to predict whether the splice site is significantly disrupted. 
+
+LOFTEE also uses an SVM model to predict variants that cause LoF by creating de novo donor splice sites leading to a frameshift.
 
 ## Requirements
 
@@ -310,6 +319,9 @@ A splice donor-disrupting variant (either essential or extended with sufficient 
 
 - RESCUE_ACCEPTOR
 Ditto for splice acceptor-disrupting variants.
+
+- 5UTR_SPLICE and 3UTR_SPLICE
+Essential splice variant LoF occurs in the UTR of the transcript.
 
 Possible values for the `Lof_flags` field are:
 
