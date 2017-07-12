@@ -147,19 +147,19 @@ Ditto for variants affecting the acceptor site. Default: 7.
 
 -   `max_scan_distance` 
 
-The maximum distance (in bp) from the disrupted donor or acceptor splice site where LOFTEE will look for alternative splice sites. Default: 15.
+The maximum distance (in bp) from the disrupted donor or acceptor splice site where LOFTEE will look for "rescue" splice sites. Default: 15.
 
 -   `donor_rescue_cutoff` 
 
-The minimum cutoff on RESCUE_DONOR_MES (i.e. the highest MES score out of all in-frame donor splice sites within max_scan_distance bp of the original splice site) used to activate RESUCE_DONOR filter. Default: 8.5.
+The minimum cutoff on RESCUE_DONOR_MES (i.e. the highest MES score out of all in-frame donor splice sites within max_scan_distance bp of the original splice site) used to activate the RESUCE_DONOR filter. Default: 8.5.
 
 -   `acceptor_rescue_cutoff` 
 
-The minimum cutoff on RESCUE_ACCEPTOR_MES used to activate RESCUE_ACCEPTOR filter. Default: 8.5.
+The minimum cutoff on RESCUE_ACCEPTOR_MES used to activate the RESCUE_ACCEPTOR filter. Default: 8.5.
 
 -   `exonic_denovo_only` 
 
-If this flag is set to true, LOFTEE will only look for de novo donor splice sites that truncate the exon (i.e. it will not look for de novo donor splice sites occurring in the intron). Default: 1.
+If this flag is set to true, LOFTEE will only look for de novo donor splice sites occuring in the exon. Default: 1.
 
 -   `weak_donor_cutoff` 
 
