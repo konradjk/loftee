@@ -121,9 +121,9 @@ database=your_mysql_db
 The Ensembl API contains a "Complete CDS" annotation that indicates that a start and stop codon has been identified for this transcript.
 This flag unfortunately requires Ensembl database access, and thus, severely decreases performance and is disabled by default.
 
--   `splicing_data_location`
+-   `loftee_path`
 
-Path to splice_data directory containing parameters for splice prediction models. Should be /path/to/loftee/splice_data/.
+Path to loftee directory. 
 
 -   `get_splice_features` 
 
