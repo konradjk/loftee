@@ -10,11 +10,20 @@ sub mes_donor_cache {
     	my $score = $cache->{mes_donor_cache}{$seq};
     	return $score;
     } else {
-    	my $score = mes_donor($seq);
+    	my $score = mes_donor($cache, $seq);
     	$cache->{mes_donor_cache}{$seq} = $score;
     	return $score;
     }
 }
+
+sub mes_donor {
+  my $cache = shift;
+  my $str = shift;
+  my %me2x5 = % { $cache->{me2x5} };
+  my %seq = % { $cache->{seq} };
+  return &log2(&score_consensus_donor($str)*$me2x5{$seq{&get_rest_donor($str)}});
+}
+
 
 sub mes_acceptor_cache {
 	my ($cache, $seq) = @_[0..1];
@@ -22,11 +31,19 @@ sub mes_acceptor_cache {
     	my $score = $cache->{mes_acceptor_cache}{$seq};
     	return $score;
     } else {
-    	my $score = mes_acceptor($seq);
+    	my $score = mes_acceptor($cache, $seq);
     	$cache->{mes_acceptor_cache}{$seq} = $score;
     	return $score;
     }
 }
+
+
+sub mes_acceptor {
+  my $cache = shift;
+  my $str = shift;
+  return &log2(&score_consensus_acceptor($str)*&max_ent_score(&get_rest_acceptor($str),$cache->{metables}));
+}
+
 
 sub mutate_seq {
     my ($wtseq, $allele, $strand, $up_flank) = @_[0..3];

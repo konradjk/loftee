@@ -87,19 +87,27 @@ sub new {
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
     
     # general splice prediction parameters
-    $self->{splicing_data_location} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/splice_data/' if !defined($self->{splicing_data_location});
+    $self->{loftee_path} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/' if !defined($self->{splicing_data_location});
     $self->{get_splice_features} = 1 if !defined($self->{get_splice_features});
     $self->{weak_donor_cutoff} = -4 if !defined($self->{weak_donor_cutoff}); # used for filtering potenital de novo splice events: if the reference site falls below this threshold, skip it
-    $self->{donor_motifs} = get_motif_info(catdir($self->{splicing_data_location}, 'donor_motifs')); # returns a hash reference
-    $self->{acceptor_motifs} = get_motif_info(catdir($self->{splicing_data_location}, 'acceptor_motifs')); # returns a hash reference
+    $self->{donor_motifs} = get_motif_info(catdir($self->{loftee_path}, 'splice_data/donor_motifs')); # returns a hash reference
+    $self->{acceptor_motifs} = get_motif_info(catdir($self->{loftee_path}, 'splice_data/acceptor_motifs')); # returns a hash reference
+
+    # MaxEntScan models
+    my @metables = &make_max_ent_scores(catdir($self->{loftee_path}, 'maxEntScan/splicemodels/')); # score3
+    my %me2x5 = &make_score_matrix(catdir($self->{loftee_path}, 'maxEntScan/me2x5')); # score5
+    my %seq = &make_sequence_matrix($self->{loftee_path}, 'maxEntScan/splicemodels/splice5sequences')); # score5
+    $self->{metables} = \@metables;
+    $self->{me2x5} = \%me2x5;
+    $self->{seq} = \%seq;
 
     # extended splice parameters
     $self->{donor_disruption_mes_cutoff} = 6 if !defined($self->{donor_disruption_mes_cutoff}); # minimum magnitude of MES disruption to be considered splice-disrupting
     $self->{acceptor_disruption_mes_cutoff} = 7 if !defined($self->{acceptor_disruption_mes_cutoff});
     $self->{donor_disruption_cutoff} = 0.99 if !defined($self->{donor_disruption_cutoff});
     $self->{acceptor_disruption_cutoff} = 0.99 if !defined($self->{acceptor_disruption_cutoff});
-    $self->{donor_model} = get_logreg_coefs(catdir($self->{splicing_data_location}, 'donor_model.txt'));  
-    $self->{acceptor_model} = get_logreg_coefs(catdir($self->{splicing_data_location}, 'acceptor_model.txt'));  
+    $self->{donor_model} = get_logreg_coefs(catdir($self->{loftee_path}, 'splice_data/donor_model.txt'));  
+    $self->{acceptor_model} = get_logreg_coefs(catdir($self->{loftee_path}, 'splice_data/acceptor_model.txt'));  
 
     # splice site scan parameters
     $self->{max_scan_distance} = 15 if !defined($self->{max_scan_distance}); # maximum distance from the original splice site for a cryptic/rescue splice site 
@@ -111,7 +119,7 @@ sub new {
     $self->{max_denovo_donor_distance} = 200 if !defined($self->{max_denovo_donor_distance}); # maximum distance from the authentic splice site for a de novo donor splice site
     $self->{denovo_donor_cutoff} = 0.99 if !defined($self->{denovo_donor_cutoff}); 
     $self->{sre_flanksize} = 100 if !defined($self->{sre_flanksize}); # size of regions upstream/downstream of a splice site in which SREs operate 
-    $self->{donor_svm} = get_svm_info(catdir($self->{splicing_data_location}, 'de_novo_donor_SVM')); # returns a hash reference
+    $self->{donor_svm} = get_svm_info(catdir($self->{loftee_path}, 'splice_data/de_novo_donor_SVM')); # returns a hash reference
 
     # parameters for conservation-based filters
     $self->{conservation_file} = 'false' if !defined($self->{conservation_file});
