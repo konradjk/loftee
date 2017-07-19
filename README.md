@@ -123,7 +123,7 @@ This flag unfortunately requires Ensembl database access, and thus, severely dec
 
 -   `loftee_path`
 
-Path to loftee directory. 
+Path to loftee directory. **Note: Your PERL5LIB should also contain this path.**
 
 -   `get_splice_features` 
 
