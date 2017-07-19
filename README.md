@@ -23,6 +23,7 @@ For splice-site variants, LOFTEE removes:
 
 -   Variants in small introns (min_intron_size; default = 15 bp)
 -   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
+-   Variants that are "rescued" by nearby, in-frame splice sites (max_scan_distance determines distance from original splice site where rescue splice sites can occur; default = 15 bp)
 
 For all variants, LOFTEE removes:
 
@@ -39,6 +40,14 @@ For stop-gained and frameshift variants, LOFTEE flags:
 For splice-site variants, LOFTEE flags:
 
 -   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
+
+### Predictions of splice-altering variants
+
+LOFTEE makes predictions of variants that cause LoF by disrupting normal splicing patterns.
+
+For variants that occur in the extended (but not essential) splice sites, LOFTEE uses logistic regression models to predict whether the splice site is significantly disrupted. 
+
+LOFTEE also uses an SVM model to predict variants that cause LoF by creating de novo donor splice sites leading to a frameshift.
 
 ## Requirements
 
@@ -111,6 +120,58 @@ database=your_mysql_db
 
 The Ensembl API contains a "Complete CDS" annotation that indicates that a start and stop codon has been identified for this transcript.
 This flag unfortunately requires Ensembl database access, and thus, severely decreases performance and is disabled by default.
+
+-   `loftee_path`
+
+Path to loftee directory. 
+
+-   `get_splice_features` 
+
+Flag indicating whether or not to write splice prediction features to LoF_info field. Default: 1.
+
+-   `donor_disruption_cutoff` 
+
+The minimum cutoff on DONOR_DISRUPTION_PROB (computed from logistic regression model) used to predict a DONOR_DISRUPTION LoF. Default: 0.99.
+
+-   `acceptor_disruption_cutoff` 
+
+The minimum cutoff on ACCEPTOR_DISRUPTION_PROB (computed from logistic regression model) used to predict a ACCEPTOR_DISRUPTION LoF. Default: 0.99.
+
+-   `donor_disruption_mes_cutoff` 
+
+If no conservation_file is specified, then LOFTEE cannot use the logistic regression model to compute DONOR_DISRUPTION_PROB. Instead, it will predict donor disruption using only the impact of the variant on the splice site’s MES score. In this case, donor_disruption_mes_cutoff is the minimum cutoff used to predict DONOR_DISRUPTION. Default: 6 (i.e. the variant must lower the MES score of the splice site by at least 6 to activate DONOR_DISRUPTION).
+
+-   `acceptor_disruption_mes_cutoff` 
+
+Ditto for variants affecting the acceptor site. Default: 7.
+
+-   `max_scan_distance` 
+
+The maximum distance (in bp) from the disrupted donor or acceptor splice site where LOFTEE will look for "rescue" splice sites. Default: 15.
+
+-   `donor_rescue_cutoff` 
+
+The minimum cutoff on RESCUE_DONOR_MES (i.e. the highest MES score out of all in-frame donor splice sites within max_scan_distance bp of the original splice site) used to activate the RESUCE_DONOR filter. Default: 8.5.
+
+-   `acceptor_rescue_cutoff` 
+
+The minimum cutoff on RESCUE_ACCEPTOR_MES used to activate the RESCUE_ACCEPTOR filter. Default: 8.5.
+
+-   `exonic_denovo_only` 
+
+If this flag is set to true, LOFTEE will only look for de novo donor splice sites occuring in the exon. Default: 1.
+
+-   `weak_donor_cutoff` 
+
+Minimum MES of the annotated donor site for LOFTEE to consider any potential de novo donor alternatives. This is necessary because instances of annotated sites with very low MES scores lead to the false prediction of many de novo donor-creating variants. Default: -4.
+
+-   `max_denovo_donor_distance`
+
+The maximum distance from the original donor splice site where LOFTEE will look for de novo donor splice sites. Default: 200.
+
+-   `denovo_donor_cutoff`
+
+The minimum cutoff on DE_NOVO_DONOR_PROB (computed from SVM model) used to predict a DE_NOVO_DONOR LoF. Default: 0.99.
 
 ## Output
 
@@ -246,6 +307,21 @@ The LoF is a splice variant that falls in a non-canonical splice site (not GT..A
 
 - ANC_ALLELE
 The alternate allele of the LoF reverts the sequence back to the ancestral state.
+
+- NON_DONOR_DISRUPTING
+An essential splice donor variant’s DISRUPTION_PROB fails to exceed the donor_disruption_cutoff.
+
+- NON_ACCEPTOR_DISRUPTING
+An essential splice acceptor variant’s DISRUPTION_PROB fails to exceed the acceptor_disruption_cutoff.
+
+- RESCUE_DONOR
+A splice donor-disrupting variant (either essential or extended with sufficient DONOR_DISRUPTION_PROB) is rescued by an alternative splice site (less than max_scan_distance bp away) with an MES score above donor_rescue_cutoff. The variant in question, which was formerly determined to disrupt an existing splice site, gets downgraded to an LC LoF.
+
+- RESCUE_ACCEPTOR
+Ditto for splice acceptor-disrupting variants.
+
+- 5UTR_SPLICE and 3UTR_SPLICE
+Essential splice variant LoF occurs in the UTR of the transcript.
 
 Possible values for the `Lof_flags` field are:
 
