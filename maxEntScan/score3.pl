@@ -1,6 +1,7 @@
 use strict;
 
 my $read_from_file = (scalar @ARGV) > 0; 
+my @metables;
 if ($read_from_file) {
   my $inputfile = $ARGV[0];
   open (FILE,"<$inputfile") || die "can't open!\n";

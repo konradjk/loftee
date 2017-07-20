@@ -96,7 +96,7 @@ sub new {
     # MaxEntScan models
     my @metables = &make_max_ent_scores(catdir($self->{loftee_path}, 'maxEntScan/splicemodels/')); # score3
     my %me2x5 = &make_score_matrix(catdir($self->{loftee_path}, 'maxEntScan/me2x5')); # score5
-    my %seq = &make_sequence_matrix($self->{loftee_path}, 'maxEntScan/splicemodels/splice5sequences')); # score5
+    my %seq = &make_sequence_matrix(catdir($self->{loftee_path}, 'maxEntScan/splicemodels/splice5sequences')); # score5
     $self->{metables} = \@metables;
     $self->{me2x5} = \%me2x5;
     $self->{seq} = \%seq;
