@@ -74,6 +74,10 @@ Advanced usage:
 
 Options:
 
+-   `loftee_path`
+
+Path to loftee directory. Default is the current working directory. **Note: Your PERL5LIB should also contain this path.**
+
 -   `filter_position`
 
 Position in transcript where a variant should be filtered. Default is 0.05, corresponding to last 5% of transcript.
@@ -120,10 +124,6 @@ database=your_mysql_db
 
 The Ensembl API contains a "Complete CDS" annotation that indicates that a start and stop codon has been identified for this transcript.
 This flag unfortunately requires Ensembl database access, and thus, severely decreases performance and is disabled by default.
-
--   `loftee_path`
-
-Path to loftee directory. **Note: Your PERL5LIB should also contain this path.**
 
 -   `get_splice_features` 
 
