@@ -7,6 +7,8 @@ $bgd{'G'} = 0.23;
 $bgd{'T'} = 0.27; 
 
 my $read_from_file = (scalar @ARGV) > 0; 
+my %me2x5;
+my %seq;
 if ($read_from_file) {
   my $inputfile = $ARGV[0];
   open (FILE,"<$inputfile") || die "can't open!\n";
