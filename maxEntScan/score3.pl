@@ -52,7 +52,8 @@ sub make_max_ent_scores{
   my $num = 0 ;
   foreach my $file (@list) {
   	my $n = 0;
-  	open (SCOREF,"<".$dir.$file) || die "Can't open $file!\n";
+  	#print "$dir $file\n";
+	open (SCOREF,"<".catfile($dir,$file)) || die "Can't open $file!\n";
   	while(<SCOREF>) {
       chomp;
       $_=~ s/\s//;

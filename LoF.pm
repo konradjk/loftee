@@ -87,7 +87,7 @@ sub new {
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
     
     # general splice prediction parameters
-    $self->{loftee_path} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/' if !defined($self->{splicing_data_location});
+    $self->{loftee_path} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/' if !defined($self->{loftee_path});
     $self->{get_splice_features} = 1 if !defined($self->{get_splice_features});
     $self->{weak_donor_cutoff} = -4 if !defined($self->{weak_donor_cutoff}); # used for filtering potenital de novo splice events: if the reference site falls below this threshold, skip it
     $self->{donor_motifs} = get_motif_info(catdir($self->{loftee_path}, 'splice_data/donor_motifs')); # returns a hash reference
@@ -95,8 +95,8 @@ sub new {
 
     # MaxEntScan models
     my @metables = &make_max_ent_scores(catdir($self->{loftee_path}, 'maxEntScan/splicemodels/')); # score3
-    my %me2x5 = &make_score_matrix(catdir($self->{loftee_path}, 'maxEntScan/me2x5')); # score5
-    my %seq = &make_sequence_matrix(catdir($self->{loftee_path}, 'maxEntScan/splicemodels/splice5sequences')); # score5
+    my %me2x5 = &make_score_matrix(catfile($self->{loftee_path}, 'maxEntScan/me2x5')); # score5
+    my %seq = &make_sequence_matrix(catfile($self->{loftee_path}, 'maxEntScan/splicemodels/splice5sequences')); # score5
     $self->{metables} = \@metables;
     $self->{me2x5} = \%me2x5;
     $self->{seq} = \%seq;
