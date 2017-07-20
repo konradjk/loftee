@@ -29,7 +29,7 @@ A VEP plugin that filters loss-of-function variation.
 
 =cut
 
-package LoF_splice;
+package LoF;
 
 # code for [5,3]UTR_SPLICE and END_TRUNC filters
 require "utr_splice.pl";
