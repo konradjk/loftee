@@ -81,7 +81,7 @@ sub new {
     }
     # general LOFTEE parameters
     $self->{filter_position} = 0.05 if !defined($self->{filter_position});
-    $self->{min_intron_size} = 15 if !defined($self->{filter_position});
+    $self->{min_intron_size} = 15 if !defined($self->{min_intron_size});
     $self->{fast_length_calculation} = 'fast' if !defined($self->{fast_length_calculation});
     $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
