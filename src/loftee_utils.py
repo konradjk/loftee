@@ -144,7 +144,7 @@ def simplify_polyphen(polyphen_list):
     Takes list of polyphen score/label pairs (e.g. ['probably_damaging(0.968)', 'benign(0.402)'])
     Returns worst (worst label and highest score) - in this case, 'probably_damaging(0.968)'
     """
-    max_score = 0.0
+    max_score = 0
     max_label = 'unknown'
     for polyphen in polyphen_list:
         label, score = polyphen.rstrip(')').split('(')
