@@ -85,6 +85,7 @@ sub new {
     $self->{fast_length_calculation} = 'fast' if !defined($self->{fast_length_calculation});
     $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
+    $self->{use_gerp_end_trunc} = 0 if !defined($self->{check_complete_cds});
     
     # general splice prediction parameters
     $self->{loftee_path} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/' if !defined($self->{loftee_path});
@@ -238,11 +239,17 @@ sub run {
         push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
 
         # using distance from stop codon weighted by GERP
-    #     $lof_position = $vf->slice->start if $lof_position < 0;
-    #     my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{conservation_database});
-    #     push(@info, 'GERP_DIST:' . $gerp_dist);
-    #     push(@info, 'BP_DIST:' . $dist);
-    #     push(@info, 'PERCENTILE:' . $lof_percentile);
+        if ($self->{use_gerp_end_trunc} && lc($self->{conservation_file} ne 'false')) {
+            #print "$lof_position\n";
+            # $lof_position = $vf->slice->start if $lof_position < 0;
+            my $slice = $vf->feature_Slice();
+            $lof_position = $slice->start if $lof_position < 0;
+            #print "$lof_position\n";
+            my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{conservation_database});
+            push(@info, 'GERP_DIST:' . $gerp_dist);
+            push(@info, 'BP_DIST:' . $dist);
+            push(@info, 'PERCENTILE:' . $lof_percentile);
+        }
     }
 
     # Filter out - exonic

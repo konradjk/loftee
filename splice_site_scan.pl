@@ -175,6 +175,7 @@ sub scan_for_donors {
         my $current_intron_length = length($seq) - 200 - $junc;
         last if ($current_intron_length < 70);
 
+        next if (length($consensus) != 9 || $consensus =~ /.*N.*/); # skip if MES score can't be computed 
         my $mes = mes_donor_cache($cache, $consensus);
         my $dist = $junc - $origin; # positive means exon extension, negative means exon truncation
         my $current_exon_length = $junc - 200;
@@ -222,6 +223,7 @@ sub scan_for_acceptors {
         my $current_intron_length = $junc + 1 - 200;
         last if ($current_intron_length < 70);
 
+        next if (length($consensus) != 23 || $consensus =~ /.*N.*/); # skip if MES score can't be computed 
         my $mes = mes_acceptor_cache($cache, $consensus);
         my $dist = $junc - $origin; # positive dist means exon truncation, negative dist means exon extension
         my $current_exon_length = length($seq) - 200 - $junc;

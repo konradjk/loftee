@@ -19,7 +19,7 @@ sub check_for_denovo_donor {
     my $number = 0;
     if ($tv->exon_number) {
         ($number, my $number_of_exons) = split /\//, ($tv->exon_number);
-        return 0 if ($number == $number_of_exons); 
+        return 0 if ($number == $number_of_exons); # quit if final exon since there is no donor site
     } elsif ($tv->intron_number) {
         ($number, my $null) = split /\//, ($tv->intron_number);
     # edge-case: insertion occurring right at the splice junction
@@ -54,7 +54,7 @@ sub check_for_denovo_donor {
         $lb =  $intron->{start} - 200;
         $rb = $exon->{end} + 200;
 	}
-    # sequence stretches from beginning of exon to end of intron (plus flanks)
+    # Note: sequence stretches from beginning of exon to end of intron, plus flanks
 
     # get wild-type nucleotide sequence
     my $left = $slice->{start} - $lb;
@@ -79,7 +79,8 @@ sub check_for_denovo_donor {
 
     # more filters
     my $ref = substr $var_seq, $ref_junc - 3, 9; # get consensus splice sequence at annotated junction
-    return @null if (length($ref) != 9); # something has gone wrong ..
+    #print "$ref\n";
+    return @null if (length($ref) != 9 || $ref =~ /.*N.*/); # quit if MES score can't be computed 
     my $ref_mes = mes_donor_cache($cache, $ref);  
     
     # return if non-canonical donor site OR if reference site has very weak MES 
@@ -107,8 +108,9 @@ sub check_for_denovo_donor {
         next if ($invalid || $also_invalid); 
 
         my $alt = substr $var_seq, $pos, 9;
+        next if (length($alt) != 9 || $alt =~ /.*N.*/); # skip if MES can't be computed
         my $alt_mes = mes_donor_cache($cache, $alt);
-        next if ($alt_mes - $ref_mes) < -15; # skip candidates that are clearly much weaker than reference
+        next if ($alt_mes - $ref_mes) < -15; # skip if candidate is clearly much weaker than reference
 
         # if you get here then you have a bona fide candidate ...
         

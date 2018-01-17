@@ -13,7 +13,7 @@ sub get_effect_on_splice {
     my $strand = $tv->transcript->strand();
     my $left = $slice->start - $splice_lb;
     my $right = $splice_rb - $slice->end;
-    $slice->{strand} = 1; # weird hack, not sure if neccessary
+    $slice->{strand} = 1; # weird hack, not sure if neccessary but I put it in for some reason I can't remember and I'm scared to take it out
     my $wt = uc($slice->expand($left, $right)->seq());
     $wt = reverse_complement($wt)->seq() if ($strand == -1); # reference splice site sequence
     my @flanks = ($left, $right);
@@ -22,6 +22,9 @@ sub get_effect_on_splice {
     my $type = ($affected_ss == 5) ? "DONOR" : "ACCEPTOR";
     my $donor = $type eq "DONOR";
     my $mes = ($donor) ? \&mes_donor_cache : \&mes_acceptor_cache;  
+    my $ss_length = ($donor) ? 9 : 23;
+    #print "$wt\n";
+    return (0, undef, undef) if (length($wt) != $ss_length || $wt =~ /.*N.*/); # quit if MES score can't be computed 
     my $ref_mes = $mes->($cache, $wt);
 
     # prepare return data for (potential) ensuing scan 
@@ -41,15 +44,15 @@ sub get_effect_on_splice {
     my $indel = $allele =~ "-";
     return (1, undef, \%info) if ($indel && $splice_lof); 
 
-    # get variant splice site now
+    # get variant splice site now (i.e. the splice site after incorporating the mutation)
     my $upstream_flank = $left;
     $upstream_flank = $right if ($strand == -1);
     my ($var, $nt_delta) = mutate_seq($wt, $allele, $strand, $upstream_flank);
     if ($nt_delta < 0) {
         my ($ref, $alt) = split /\//, ($allele);
         if (($slice->end - $slice->start + 1) != length($ref)) {
-            my %features = ( ERROR => "VariationFeature slice inconsistent with allele (try splitting multi-allelic sites?)" );
-            return (0, \%features, 1);
+            my %lof_info_error_msg = ( ERROR => "VariationFeature slice inconsistent with allele (try splitting multi-allelic sites?)" );
+            return (0, \%lof_info_error_msg, 1);
         }
     }
     my $delta = length($var) - length($wt);
@@ -98,6 +101,7 @@ sub get_effect_on_splice {
             }
         }
     }
+    return (0, undef, undef) if (length($var) != $ss_length || $var =~ /.*N.*/); # quit if MES score can't be computed 
     push(@flanks, ($left, $right)); # use these for getting SRE features
 
     # get branch point feature

@@ -2,8 +2,8 @@ use strict;
 
 sub check_5UTR {
     my ($transcript_variation, $variation_feature) = @_[0..1];
-    my $strand = $variation_feature->{strand};
-
+    #my $strand = $variation_feature->{strand};
+    my $strand = $transcript_variation->transcript->strand;
     # Start is always less than or equal to end regardless of the orientation of the slice (true for introns as well).
     my $slice = $variation_feature->feature_Slice();
 
@@ -19,8 +19,8 @@ sub check_5UTR {
 
 sub check_3UTR {
     my ($transcript_variation, $variation_feature) = @_[0..1];
-    my $strand = $variation_feature->{strand};
-
+    #my $strand = $variation_feature->{strand};
+    my $strand = $transcript_variation->transcript->strand;
     # Start is always less than or equal to end regardless of the orientation of the slice (true for introns as well).
     my $slice = $variation_feature->feature_Slice();
     

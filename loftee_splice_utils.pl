@@ -19,6 +19,7 @@ sub mes_donor_cache {
 sub mes_donor {
   my $cache = shift;
   my $str = shift;
+  #print "$str\n";
   my %me2x5 = % { $cache->{me2x5} };
   my %seq = % { $cache->{seq} };
   return &log2(&score_consensus_donor($str)*$me2x5{$seq{&get_rest_donor($str)}});
