@@ -6,6 +6,7 @@ require "maxEntScan/score5.pl";
 
 sub mes_donor_cache {
     my ($cache, $seq) = @_[0..1];
+    # print "$seq\n";
     if (exists($cache->{mes_donor_cache}{$seq})) {
     	my $score = $cache->{mes_donor_cache}{$seq};
     	return $score;
