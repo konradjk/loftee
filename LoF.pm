@@ -14,15 +14,6 @@
  perl variant_effect_predictor.pl -i variations.vcf --plugin LoF
  perl variant_effect_predictor.pl -i variations.vcf --plugin LoF,filter_position:0.05,...
 
-To test:
-With --tabix (i.e. input VCF is gzippe'd):
-/broad/software/free/Linux/redhat_5_x86_64/pkgs/perl_5.10.1/bin/perl /humgen/atgu1/fs03/konradk/vep/ensembl-tools-release-79/scripts/variant_effect_predictor/variant_effect_predictor.pl --everything --vcf --allele_number --no_stats --cache --offline --dir /humgen/atgu1/fs03/konradk/vep/gold/ --force_overwrite --cache_version 79 --fasta Homo_sapiens.GRCh37.75.dna.primary_assembly.fa --assembly GRCh37 --tabix --plugin LoF,human_ancestor_fa:/humgen/atgu1/fs03/konradk/loftee_data//human_ancestor.fa.gz,filter_position:0.05,min_intron_size:15,conservation_file:mysql -i input.vcf.gz -o output.vcf.gz
-Without:
-/broad/software/free/Linux/redhat_5_x86_64/pkgs/perl_5.10.1/bin/perl /humgen/atgu1/fs03/konradk/vep/ensembl-tools-release-79/scripts/variant_effect_predictor/variant_effect_predictor.pl --everything --vcf --allele_number --no_stats --cache --offline --dir /humgen/atgu1/fs03/konradk/vep/gold/ --force_overwrite --cache_version 79 --fasta Homo_sapiens.GRCh37.75.dna.primary_assembly.fa --assembly GRCh37  --plugin LoF,human_ancestor_fa:/humgen/atgu1/fs03/konradk/loftee_data//human_ancestor.fa.gz,filter_position:0.05,min_intron_size:15,conservation_file:mysql -i test.vcf -o tmp
-
-To run annotation:
-python /humgen/atgu1/fs03/konradk/src/maclab_scripts/vep/run_lof_annotation.py --vcf input.vcf --context --ancestral -s 5000 -q hour --mysql --dev -o OUTPUTDIR
-
 =head1 DESCRIPTION
 
 A VEP plugin that filters loss-of-function variation.
@@ -88,7 +79,7 @@ sub new {
     $self->{use_gerp_end_trunc} = 0 if !defined($self->{check_complete_cds});
     
     # general splice prediction parameters
-    $self->{loftee_path} = '/humgen/atgu1/fs03/birnbaum/loftee-dev/' if !defined($self->{loftee_path});
+    $self->{loftee_path} = '/vep/loftee/' if !defined($self->{loftee_path});
     $self->{get_splice_features} = 1 if !defined($self->{get_splice_features});
     $self->{weak_donor_cutoff} = -4 if !defined($self->{weak_donor_cutoff}); # used for filtering potenital de novo splice events: if the reference site falls below this threshold, skip it
     $self->{donor_motifs} = get_motif_info(catdir($self->{loftee_path}, 'splice_data/donor_motifs')); # returns a hash reference
@@ -122,7 +113,7 @@ sub new {
     $self->{sre_flanksize} = 100 if !defined($self->{sre_flanksize}); # size of regions upstream/downstream of a splice site in which SREs operate 
     $self->{donor_svm} = get_svm_info(catdir($self->{loftee_path}, 'splice_data/de_novo_donor_SVM')); # returns a hash reference
 
-    # parameters for conservation-based filters
+    # parameters for PHYLOCSF-based filters
     $self->{conservation_file} = 'false' if !defined($self->{conservation_file});
     $self->{conservation_database} = 'false';
     if ($self->{conservation_file} ne 'false') {
@@ -133,7 +124,22 @@ sub new {
             $self->{conservation_database} = DBI->connect("dbi:SQLite:dbname=" . $self->{conservation_file}, "", "") or die "Cannot connect to " . $self->{conservation_file} . "\n";
         }
     }
-    
+    # parameters for GERP-based filters
+    $self->{tabix_path} = 'tabix' if !defined($self->{tabix_path});
+    $self->{gerp_database} = 'false';
+    $self->{gerp_file} = '/vep/loftee/GERP_scores.final.sorted.txt.gz' if !defined($self->{gerp_file});
+    if (defined($self->{gerp_file})) {
+        if ($self->{gerp_file} eq 'mysql') {
+            my $db_info = "DBI:mysql:mysql_read_default_group=loftee;mysql_read_default_file=~/.my.cnf";
+            $self->{gerp_database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $db_info . "\n";
+        } else {
+            if (`$self->{tabix_path} -l $self->{gerp_file} 2>&1` =~ "fail") {
+                die "Cannot read " . $self->{gerp_file} . " using " . $self->{tabix_path};
+            } else {
+                $self->{gerp_database} = $self->{tabix_path} . " " . $self->{gerp_file};
+            }
+        }
+    }
     $self->{apply_all} = $self->{apply_all} || 'false';
     $debug = $self->{debug} || 0;
     
@@ -239,17 +245,12 @@ sub run {
         push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
 
         # using distance from stop codon weighted by GERP
-        if ($self->{use_gerp_end_trunc} && lc($self->{conservation_file} ne 'false')) {
-            #print "$lof_position\n";
-            # $lof_position = $vf->slice->start if $lof_position < 0;
-            my $slice = $vf->feature_Slice();
-            $lof_position = $slice->start if $lof_position < 0;
-            #print "$lof_position\n";
-            my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{conservation_database});
-            push(@info, 'GERP_DIST:' . $gerp_dist);
-            push(@info, 'BP_DIST:' . $dist);
-            push(@info, 'PERCENTILE:' . $lof_percentile);
-        }
+        my $slice = $vf->feature_Slice();
+        $lof_position = $slice->start if $lof_position < 0;
+        my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{gerp_database}, $self->{conservation_database});
+        push(@info, 'GERP_DIST:' . $gerp_dist);
+        push(@info, 'BP_DIST:' . $dist);
+        push(@info, 'PERCENTILE:' . $lof_percentile);
     }
 
     # Filter out - exonic
@@ -265,7 +266,7 @@ sub run {
             push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($tv, $self->{min_intron_size}));
         }
         
-        if (lc($self->{conservation_file} ne 'false')) {
+        if (lc($self->{conservation_file}) ne 'false') {
             my $conservation_info = check_for_conservation($transcript_variation_allele, $self->{conservation_database});
             if (not $conservation_info) {
                 push(@info, "PHYLOCSF_TOO_SHORT");

@@ -1,8 +1,8 @@
 use strict;
 
 sub get_gerp_weighted_dist {
-    my ($tr, $pos, $gerp_db) = @_[0..2];
-    
+    my ($tr, $pos, $gerp_db, $cons_db) = @_[0..3];
+
     # collect some variables
     my $chr = $tr->seq_region_name();
     my @exons = @{ $tr->get_all_Exons };
@@ -57,7 +57,7 @@ sub get_gerp_weighted_dist {
             $wd = get_interval_gerp($chr, $start, $end, $gerp_db);
         } else {
             my $exon_num = $i + 1;
-            $wd = get_exon_gerp($transcript_id, $exon_num, $gerp_db);
+            $wd = get_exon_gerp($transcript_id, $exon_num, $cons_db);
             $start = $current_exon->start;
             $end = $current_exon->end;
         }
@@ -69,21 +69,56 @@ sub get_gerp_weighted_dist {
 
 sub get_interval_gerp {
     my ($chrom, $a, $b, $gerp_db) = @_[0..3];
-    if ($a > $b) { my $tmp = $a; $a = $b; $b = $tmp; }
-    my $wd = 0;
-    for (my $i=$a; $i <= $b; $i++) {
-        $wd = $wd + get_bp_gerp($chrom, $i, $gerp_db);
+    if ($gerp_db =~ 'tabix') {
+        return (get_interval_gerp_tabix($chrom, $a, $b, $gerp_db));
+    } else {
+        return (get_interval_gerp_db($chrom, $a, $b, $gerp_db));
     }
-    return $wd;
+}
+
+sub get_interval_gerp_db {
+    my ($chrom, $a, $b, $gerp_db) = @_[0..3];
+    if ($a > $b) { my $tmp = $a; $a = $b; $b = $tmp; }
+    my $sql_query = $gerp_db->prepare("SELECT sum(gerp) as gerp FROM gerp_bases where chrom = ? AND pos >= ? AND pos <= ?;");
+    $sql_query->execute($chrom, $a, $b) or die("MySQL ERROR: $!");
+    my $results = $sql_query->fetchrow_hashref;
+    $sql_query->finish();
+    return ($results->{gerp});
+}
+
+sub get_interval_gerp_tabix {
+    my ($chrom, $a, $b, $gerp_db) = @_[0..3];
+    if ($a > $b) { my $tmp = $a; $a = $b; $b = $tmp; }
+    my @results = split /\n/, `$gerp_db $chrom:$a-$b 2>&1`;
+    my $gerp = 0;
+    for my $row (@results) {
+        my @res = split /\t/, $row;
+        $gerp += $res[2];
+    }
+    return ($gerp);
 }
 
 sub get_bp_gerp {
+    my ($chrom, $pos, $gerp_db) = @_[0..3];
+    if ($gerp_db =~ 'tabix') {
+        return (get_bp_gerp_tabix($chrom, $pos, $gerp_db));
+    } else {
+        return (get_bp_gerp_db($chrom, $pos, $gerp_db));
+    }
+}
+sub get_bp_gerp_db {
     my ($chrom, $pos, $gerp_db) = @_[0..2];
     my $sql_query = $gerp_db->prepare("SELECT * FROM gerp_bases where chrom = ? AND pos = ?;");
     $sql_query->execute($chrom, $pos) or die("MySQL ERROR: $!");
     my $results = $sql_query->fetchrow_hashref;
     $sql_query->finish();
     return ($results->{gerp});
+}
+sub get_bp_gerp_tabix {
+    my ($chrom, $pos, $gerp_db) = @_[0..2];
+    my $res = `$gerp_db $chrom:$pos-$pos 2>&1`;
+    my @results = split /\t/, $res;
+    return ($results[2]);
 }
 
 
