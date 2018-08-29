@@ -241,8 +241,8 @@ sub run {
 
     # filter LoF variants occurring near the reference stop codon
     if ($tv->cds_end) {
-        my $lof_percentile = get_position($tv, $self->{fast_length_calculation}); 
-        push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
+        my $lof_percentile = get_position($tv, $self->{fast_length_calculation});
+        # push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
 
         # using distance from stop codon weighted by GERP
         my $slice = $vf->feature_Slice();
@@ -251,6 +251,12 @@ sub run {
         push(@info, 'GERP_DIST:' . $gerp_dist);
         push(@info, 'BP_DIST:' . $dist);
         push(@info, 'PERCENTILE:' . $lof_percentile);
+
+        my $last_exon_length = get_last_exon_coding_length($tv);
+        my $d = $dist - $last_exon_length;
+        push(@info, 'DIST_FROM_LAST_EXON:' . $d);
+        push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
+        push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= 180);
     }
 
     # Filter out - exonic
@@ -518,6 +524,42 @@ sub check_for_conservation {
     my $results = $sql_statement->fetchrow_hashref;
     $sql_statement->finish();
     return $results;
+}
+
+sub get_last_exon_coding_length {
+    my $transcript_variation = shift;
+    my ($exon_idx, $number_of_exons) = split /\//, ($transcript_variation->exon_number);
+    $exon_idx--;
+    my @exons = @{ $transcript_variation->transcript->get_all_Exons };
+
+    my $strand = $transcript_variation->transcript->strand();
+    my $stop_codon_pos = 0;
+    if ($strand == 1) {
+        $stop_codon_pos = $transcript_variation->transcript->{coding_region_end};
+    } elsif ($strand == -1) {
+        $stop_codon_pos = $transcript_variation->transcript->{coding_region_start};
+    }
+    # locate last exon in CDS, get the length of its coding portion
+    my $last_exon_len = -1000;
+    for (my $i=$number_of_exons - 1; $i >= $exon_idx; $i--) {
+        my $current_exon = $exons[$i];
+        if ($strand == 1) {
+            if ($current_exon->{start} > $stop_codon_pos) {
+                next;
+            } elsif ($current_exon->{end} >= $stop_codon_pos) {
+                $last_exon_len = $stop_codon_pos - $current_exon->{start};
+                last;
+            }
+        } else {
+            if ($current_exon->{end} < $stop_codon_pos) {
+                next;
+            } elsif ($current_exon->{start} <= $stop_codon_pos) {
+                $last_exon_len = $current_exon->{end} - $stop_codon_pos;
+                last;
+            }
+        }
+    }
+    return $last_exon_len;
 }
 
 1;
