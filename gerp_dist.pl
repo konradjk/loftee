@@ -18,15 +18,15 @@ sub get_gerp_weighted_dist {
     } elsif ($strand == -1) {
         $stop_codon_pos = $tr->{coding_region_start};
         $start_codon_pos = $tr->{coding_region_end};
-    } 
+    }
 
-    # get distance to from variant to stop codon, weighted by GERP 
+    # get distance to from variant to stop codon, weighted by GERP
     my $weighted_dist = 0;
     my $dist = 0;
     for (my $i=0; $i <= $number_of_exons - 1; $i++) {
         my $current_exon = $exons[$i];
         # skip exons upstream of variant
-        if ($strand == 1) {
+        if ($strand == -1) {
             next if $pos < $current_exon->start;
         } else {
             next if $pos > $current_exon->end;
@@ -40,7 +40,7 @@ sub get_gerp_weighted_dist {
             $last_exon = ($current_exon->end > $stop_codon_pos) && ($current_exon->start <= $stop_codon_pos);
         }
 
-        # get contribution of current exon to total weighted distance 
+        # get contribution of current exon to total weighted distance
         my ($start, $end, $wd);
         my $in_affected_exon = ($pos >= $current_exon->start) && ($pos <= $current_exon->end);
         if ($last_exon) {
