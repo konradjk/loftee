@@ -96,7 +96,7 @@ sub new {
     # extended splice parameters
     $self->{donor_disruption_mes_cutoff} = 6 if !defined($self->{donor_disruption_mes_cutoff}); # minimum magnitude of MES disruption to be considered splice-disrupting
     $self->{acceptor_disruption_mes_cutoff} = 7 if !defined($self->{acceptor_disruption_mes_cutoff});
-    $self->{donor_disruption_cutoff} = 0.99 if !defined($self->{donor_disruption_cutoff});
+    $self->{donor_disruption_cutoff} = 0.98 if !defined($self->{donor_disruption_cutoff});
     $self->{acceptor_disruption_cutoff} = 0.99 if !defined($self->{acceptor_disruption_cutoff});
     $self->{donor_model} = get_logreg_coefs(catdir($self->{loftee_path}, 'splice_data/donor_model.txt'));  
     $self->{acceptor_model} = get_logreg_coefs(catdir($self->{loftee_path}, 'splice_data/acceptor_model.txt'));  
@@ -109,7 +109,7 @@ sub new {
     # de novo donor splice parameters
     $self->{exonic_denovo_only} = 1 if !defined($self->{exonic_denovo_only});
     $self->{max_denovo_donor_distance} = 200 if !defined($self->{max_denovo_donor_distance}); # maximum distance from the authentic splice site for a de novo donor splice site
-    $self->{denovo_donor_cutoff} = 0.99 if !defined($self->{denovo_donor_cutoff}); 
+    $self->{denovo_donor_cutoff} = 0.995 if !defined($self->{denovo_donor_cutoff});
     $self->{sre_flanksize} = 100 if !defined($self->{sre_flanksize}); # size of regions upstream/downstream of a splice site in which SREs operate 
     $self->{donor_svm} = get_svm_info(catdir($self->{loftee_path}, 'splice_data/de_novo_donor_SVM')); # returns a hash reference
 
