@@ -269,7 +269,7 @@ sub run {
             if (lc($self->{check_complete_cds}) eq 'true') {
                 push(@filters, 'INCOMPLETE_CDS') if (check_incomplete_cds($tv));
             }
-            push(@filters, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($tv, $self->{min_intron_size}));
+            push(@flags, 'NON_CAN_SPLICE_SURR') if (check_surrounding_introns($tv, $self->{min_intron_size}));
         }
         
         if (lc($self->{conservation_file}) ne 'false') {
