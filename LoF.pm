@@ -231,8 +231,10 @@ sub run {
         }
     }
 
-    if ($loftee_splice_lof || $vep_splice_lof || $other_lof) {
+    if ($vep_splice_lof || $other_lof) {
         $confidence = 'HC';
+    } elsif ($loftee_splice_lof) {
+        $confidence = 'OS';
     } else {
         if ($self->{apply_all} eq 'false') {
             return { LoF_info => join(',', @info), LoF_flags => join(',', @flags), LoF_filter => join(',', @filters) };
