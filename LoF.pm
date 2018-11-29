@@ -237,7 +237,11 @@ sub run {
         $confidence = 'OS';
     } else {
         if ($self->{apply_all} eq 'false') {
-            return { LoF_info => join(',', @info), LoF_flags => join(',', @flags), LoF_filter => join(',', @filters) };
+            my $output_hash = {};
+            if (scalar @info > 0) {
+                $output_hash->{'LoF_info'} = join(',', @info)
+            }
+            return $output_hash;
         }
     }
 
@@ -312,12 +316,21 @@ sub run {
     if (lc($self->{human_ancestor_fa}) ne 'false') {
         push(@filters, 'ANC_ALLELE') if (check_for_ancestral_allele($transcript_variation_allele, $self->{human_ancestor_fa}));
     }
-    
-    if ($confidence eq 'HC' && scalar @filters > 0) {
+
+    my $output_hash = {};
+    if ($confidence ne '' && scalar @filters > 0) {
         $confidence = 'LC';
+        $output_hash->{'LoF_filter'} = join(',', @filters);
     }
-    
-    return { LoF => $confidence, LoF_filter => join(',', @filters), LoF_flags => join(',', @flags), LoF_info => join(',', @info) };
+    $output_hash->{'LoF'} = $confidence;
+    if (scalar @flags > 0) {
+        $output_hash->{'LoF_flags'} = join(',', @flags);
+    }
+    if (scalar @info > 0) {
+        $output_hash->{'LoF_info'} = join(',', @info);
+    }
+
+    return $output_hash;
 }
 
 sub DESTROY {
