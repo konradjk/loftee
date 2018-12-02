@@ -371,13 +371,7 @@ sub intron_motif_start_GC_to_GT {
 
     print "Intron starts with: " . substr($sequence, 0, 2) . "\n" if ($debug && substr($sequence, 0, 2) ne 'GT');
 
-    # my $canonical = substr($sequence, 0, 2) eq 'GT';
     my $gc_to_canonical = (substr($sequence, 0, 2) eq 'GC') && ($ref eq 'C') && ($alt eq 'T');
-
-    # print STDERR "Var: " . $transcript_variation->variation_feature->start . " ";
-    # print STDERR "Ref:" . substr($sequence, 0, 2) . " ";
-    # print STDERR "Allele: " . $ref . " " . $alt . " ";
-    # print STDERR "can: " . $canonical . " ncan: " . $gc_to_canonical . "res: " . !($canonical || $gc_to_canonical) . "\n";
 
     return $gc_to_canonical;
 }
