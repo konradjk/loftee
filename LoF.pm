@@ -301,9 +301,12 @@ sub run {
             # Intron size filter
             my $intron_size = get_intron_size($tv);
             push(@info, 'INTRON_SIZE:' . $intron_size);           
-            push(@filters, 'SMALL_INTRON') if ($intron_size < $self->{min_intron_size});                      
-            push(@filters, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($tv));
-            if ("splice_acceptor_variant" ~~ @consequences || "splice_donor_variant" ~~ @consequences) {
+            push(@filters, 'SMALL_INTRON') if ($intron_size < $self->{min_intron_size});
+            if ($vep_splice_lof) {
+                if ("splice_donor_variant" ~~ @consequences) {
+                    push(@filters, 'GC_TO_GT_DONOR') if (intron_motif_start_GC_to_GT($tv));
+                }
+                push(@flags, 'NON_CAN_SPLICE') if (check_for_non_canonical_intron_motif($tv));
                 push(@filters, '5UTR_SPLICE') if $fiveUTR_variant;
                 push(@filters, '3UTR_SPLICE') if $threeUTR_variant;
             } 
@@ -348,6 +351,35 @@ sub small_intron {
     my $min_intron_size = shift;
     my @gene_introns = @{$transcript_variation->transcript->get_all_Introns()};   
     return ($gene_introns[$intron_number]->length < $min_intron_size);
+}
+
+sub intron_motif_start_GC_to_GT {
+    my $transcript_variation = shift;
+
+    my ($intron_number, $total_introns) = split /\//, ($transcript_variation->intron_number);
+    $intron_number--;
+    my $transcript = $transcript_variation->transcript;
+    my @gene_introns = @{$transcript->get_all_Introns()};
+
+    # Cache intron sequence
+    unless (exists($transcript->{intron_cache}->{$intron_number})) {
+        $transcript->{intron_cache}->{$intron_number} = $gene_introns[$intron_number]->seq;
+    }
+    my $sequence = $transcript->{intron_cache}->{$intron_number};
+
+    my ($ref, $alt) = map {$_->feature_seq} @{$transcript_variation->get_all_TranscriptVariationAlleles()};
+
+    print "Intron starts with: " . substr($sequence, 0, 2) . "\n" if ($debug && substr($sequence, 0, 2) ne 'GT');
+
+    # my $canonical = substr($sequence, 0, 2) eq 'GT';
+    my $gc_to_canonical = (substr($sequence, 0, 2) eq 'GC') && ($ref eq 'C') && ($alt eq 'T');
+
+    # print STDERR "Var: " . $transcript_variation->variation_feature->start . " ";
+    # print STDERR "Ref:" . substr($sequence, 0, 2) . " ";
+    # print STDERR "Allele: " . $ref . " " . $alt . " ";
+    # print STDERR "can: " . $canonical . " ncan: " . $gc_to_canonical . "res: " . !($canonical || $gc_to_canonical) . "\n";
+
+    return $gc_to_canonical;
 }
 
 sub intron_motif_start {
