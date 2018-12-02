@@ -246,7 +246,7 @@ sub run {
     }
 
     # filter LoF variants occurring near the reference stop codon
-    if ($tv->cds_end) {
+    if ($other_lof && $tv->cds_end) {
         my $lof_percentile = get_position($tv, $self->{fast_length_calculation});
         # push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
 
@@ -266,7 +266,7 @@ sub run {
     }
 
     # Filter out - exonic
-    if ($tv->exon_number) {
+    if ($other_lof && $tv->exon_number) {
         if (check_for_exon_annotation_errors($tv)) {
             push(@filters, 'EXON_INTRON_UNDEF');
         } elsif (check_for_single_exon($tv)) {
