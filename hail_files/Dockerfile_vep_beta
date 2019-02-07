@@ -1,0 +1,55 @@
+FROM ubuntu:16.04
+MAINTAINER konradjk
+
+ENV VEP_VERSION 85
+
+RUN apt-get update && apt-get -y install \
+    apache2 \
+    build-essential \
+    cpanminus \
+    curl \
+    git \
+    libmysqlclient-dev \
+    libpng-dev \
+    libssl-dev \
+    locales \
+    manpages \
+    mysql-client \
+    openssl \
+    perl \
+    perl-base \
+    unzip \
+    vim \
+    wget \
+    sqlite3 \
+    tabix
+
+RUN cpanm Devel::CheckLib \
+    DBI \
+    DBD::mysql \
+    DBD::SQLite \
+    Try \
+    File::Copy::Recursive \
+    Archive::Extract \
+    Archive::Zip \
+    CGI \
+    Bio::Root::Version \
+    JSON
+
+ENV VEP_DIR /vep
+RUN mkdir $VEP_DIR
+WORKDIR $VEP_DIR
+
+RUN wget https://github.com/Ensembl/ensembl-tools/archive/release/${VEP_VERSION}.zip
+RUN unzip ${VEP_VERSION}.zip
+WORKDIR $VEP_DIR/ensembl-tools-release-${VEP_VERSION}/scripts/variant_effect_predictor/
+RUN perl INSTALL.pl -a a
+
+WORKDIR $VEP_DIR
+RUN echo "#!/bin/bash" > ./vep
+RUN echo "export PERL5LIB=\$PERL5LIB:/vep/loftee" >> ./vep
+RUN echo "perl /vep/ensembl-tools-release-$VEP_VERSION/scripts/variant_effect_predictor/variant_effect_predictor.pl \$@" >> ./vep
+
+ENV PERL5LIB "${PERL5LIB}:/vep/loftee"
+
+RUN git clone https://github.com/konradjk/loftee.git

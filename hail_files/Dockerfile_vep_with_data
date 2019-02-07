@@ -1,0 +1,35 @@
+FROM konradjk/vep85_cache:latest
+MAINTAINER konradjk
+
+ENV ASSEMBLY GRCh37
+ENV VEP_DIR /vep
+
+WORKDIR $VEP_DIR/ensembl-tools-release-85/scripts/variant_effect_predictor/
+
+RUN perl INSTALL.pl -a c -y $ASSEMBLY -s homo_sapiens -t
+
+WORKDIR $VEP_DIR
+
+RUN wget https://personal.broadinstitute.org/konradk/1var.vcf
+RUN wget https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/GERP_scores.final.sorted.txt.gz.tbi
+RUN wget -q https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/GERP_scores.final.sorted.txt.gz
+RUN wget -q https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/human_ancestor.fa.gz
+RUN wget -q https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/human_ancestor.fa.gz.fai
+RUN wget -q https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/phylocsf_gerp.sql
+RUN wget -q https://personal.broadinstitute.org/konradk/loftee_data/${ASSEMBLY}/human_ancestor.fa.gz.gzi
+
+ENV PERL5LIB /vep/loftee
+
+RUN perl ensembl-tools-release-85/scripts/variant_effect_predictor/variant_effect_predictor.pl \
+  -i 1var.vcf \
+  --format vcf \
+  --everything \
+  --allele_number \
+  --no_stats \
+  --cache --offline \
+  --minimal \
+  --vcf \
+  --assembly ${ASSEMBLY} \
+  -o test.vcf \
+  --force_overwrite \
+  --plugin LoF,human_ancestor_fa:/vep/human_ancestor.fa.gz,filter_position:0.05,min_intron_size:15,conservation_file:/vep/phylocsf_gerp.sql,gerp_file:/vep/GERP_scores.final.sorted.txt.gz
