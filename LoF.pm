@@ -12,7 +12,7 @@
 
  mv LoF.pm ~/.vep/Plugins
  perl variant_effect_predictor.pl -i variations.vcf --plugin LoF
- perl variant_effect_predictor.pl -i variations.vcf --plugin LoF,filter_position:0.05,...
+ perl variant_effect_predictor.pl -i variations.vcf --plugin LoF,...
 
 =head1 DESCRIPTION
 
@@ -71,7 +71,7 @@ sub new {
         }
     }
     # general LOFTEE parameters
-    $self->{filter_position} = 0.05 if !defined($self->{filter_position});
+    # $self->{filter_position} = 0.05 if !defined($self->{filter_position});
     $self->{min_intron_size} = 15 if !defined($self->{min_intron_size});
     $self->{fast_length_calculation} = 'fast' if !defined($self->{fast_length_calculation});
     $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
