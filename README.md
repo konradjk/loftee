@@ -105,9 +105,9 @@ If this flag is set to 'false', the ancestral allele will not be checked and fil
 
 -   `conservation_file`
 
-The required SQL database (gzip) can be downloaded [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf.sql.gz).
+The required SQL database (gzip) can be downloaded [here](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz).
 Alternatively, this can be loaded into MySQL by downloading the source file [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data.tsv.gz)
-and loaded into MySQL with the schema available [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data_schema.sql).
+and loaded into MySQL with the schema available [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data_schema.sql). This route requires an additional load of the GERP [base](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/GERP_scores.final.sorted.txt.gz) and [exon](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/GERP_scores.exons.txt.gz) files into the same database of `gerp_bases` and `gerp_exons` repsectively.
 You will then need to create a \[loftee\] entry in your `~/.my.cnf` (creating one if it does not exist) that looks like:
 
 <pre>
