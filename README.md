@@ -12,38 +12,43 @@ Currently assesses variants that are:
 
 ### Filters
 
-LOFTEE implements a set of filters to deem a LoF as "low-confidence."
+LOFTEE implements a set of filters to deem a LoF as "low-confidence" (LC). Variants that pass these filters are labeled as "high-confidence" (HC).
 
 For stop-gained and frameshift variants, LOFTEE removes:
 
--   Variants that are in the last X% of the transcript (filter_position; default = 5%)
+-   Variants that are near the end of the transcript (based on the 50 bp rule, with modifications as described in [Karczewski et al., 2019 supplement](https://www.biorxiv.org/content/biorxiv/early/2019/01/30/531210/DC1/embed/media-1.pdf?download=true))
 -   Variants that land in an exon with non-canonical splice sites around it (i.e. intron does not start with GT and end with AG)
 
 For splice-site variants, LOFTEE removes:
 
--   Variants in small introns (min_intron_size; default = 15 bp)
--   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
+-   Variants that only affect splicing of UTRs
+-   Variants that are not predicted to affect a donor site (GC -> GT)
+-   Variants where MaxEntScan does not predict an effect on splicing
 -   Variants that are "rescued" by nearby, in-frame splice sites (max_scan_distance determines distance from original splice site where rescue splice sites can occur; default = 15 bp)
+-   Variants in small introns (min_intron_size; default = 15 bp; only relevant to older versions of Gencode)
 
 For all variants, LOFTEE removes:
 
 -   Variants where the purported LoF allele is the ancestral state (across primates)
+-   Variants in incomplete transcripts (only relevant to older versions of Gencode)
 
 ### Flags
 
-LOFTEE implements a series of flags based on some variant parameters.
+LOFTEE implements a series of flags in addition to the above filters. Flagged variants should be treated with caution, particularly when doing genome-wide scans of LoF variation. However, they largely relate to the properties of individual transcripts or exons, so domain knowledge of a given gene will typically outperform these flags.
 
 For stop-gained and frameshift variants, LOFTEE flags:
 
 -   Variants in genes with only a single exon
+-   Variants in exons that do not have the evolutionary signature of a protein-coding gene based on PhyloCSF
 
 For splice-site variants, LOFTEE flags:
 
 -   Variants in NAGNAG sites (acceptor sites rescued by in-frame acceptor site)
+-   Variants that fall in an intron with a non-canonical splice site (i.e. intron does not start with GT and end with AG).
 
 ### Predictions of splice-altering variants
 
-LOFTEE makes predictions of variants that cause LoF by disrupting normal splicing patterns.
+LOFTEE also makes predictions of other splice (OS) variants that may cause LoF by disrupting normal splicing patterns.
 
 For variants that occur in the extended (but not essential) splice sites, LOFTEE uses logistic regression models to predict whether the splice site is significantly disrupted. 
 
@@ -53,34 +58,27 @@ LOFTEE also uses an SVM model to predict variants that cause LoF by creating de 
 
 -   VEP
 -   >= Perl 5.10.1
--   Ancestral sequence (human\_ancestor.fa[.rz])
+-   Ancestral sequence (human\_ancestor.fa[.gz|.rz])
 -   Samtools (must be on path)
 -   PhyloCSF database (phylocsf.sql) for conservation filters
 
 ## Usage
 
-LOFTEE is easiest run when it is in the VEP plugin directory (`~/.vep/Plugins/`): `mv LoF.pm ~/.vep/Plugins`.
-Alternatively, VEP can be run with `--dir_plugins` to specify a plugins directory.
+LOFTEE is easiest run when cloned from Github and passed to VEP using `--dir_plugins` (or move all files in the directory into `~/.vep/Plugins/`).
 
 Basic usage:
 
-    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF
+    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,loftee_path:/path/to/loftee --dir_plugins /path/to/loftee
 
-Advanced usage:
+Pass additional options to LOFTEE by:
 
-    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,human_ancestor_fa:/path/to/human_ancestor.fa[.rz]
-    
-    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,human_ancestor_fa:/path/to/human_ancestor.fa,filter_position:0.05
+    perl variant_effect_predictor.pl [--other options to VEP] --plugin LoF,loftee_path:/path/to/loftee,human_ancestor_fa:/path/to/human_ancestor.fa.gz
 
 Options:
 
 -   `loftee_path`
 
 Path to loftee directory. Default is the current working directory. **Note: Your PERL5LIB should also contain this path.**
-
--   `filter_position`
-
-Position in transcript where a variant should be filtered. Default is 0.05, corresponding to last 5% of transcript.
 
 -   `min_intron_size`
 
@@ -131,7 +129,7 @@ Flag indicating whether or not to write splice prediction features to LoF_info f
 
 -   `donor_disruption_cutoff` 
 
-The minimum cutoff on DONOR_DISRUPTION_PROB (computed from logistic regression model) used to predict a DONOR_DISRUPTION LoF. Default: 0.99.
+The minimum cutoff on DONOR_DISRUPTION_PROB (computed from logistic regression model) used to predict a DONOR_DISRUPTION LoF. Default: 0.98.
 
 -   `acceptor_disruption_cutoff` 
 
@@ -171,7 +169,7 @@ The maximum distance from the original donor splice site where LOFTEE will look 
 
 -   `denovo_donor_cutoff`
 
-The minimum cutoff on DE_NOVO_DONOR_PROB (computed from SVM model) used to predict a DE_NOVO_DONOR LoF. Default: 0.99.
+The minimum cutoff on DE_NOVO_DONOR_PROB (computed from SVM model) used to predict a DE_NOVO_DONOR LoF. Default: 0.995.
 
 ## Output
 
@@ -293,17 +291,11 @@ The LoF variant falls in the last `filter_position` of the transcript (default =
 - INCOMPLETE_CDS
 The LoF falls in a transcript whose start or stop codons are not known.
 
-- NON\_CAN\_SPLICE\_SURR
-The LoF falls in an exon whose surround splice sites are non-canonical (not GT..AG).
-
 - EXON\_INTRON_UNDEF
 The LoF falls in a transcript whose exon/intron boundaries are undefined in the EnsEMBL API.
 
 - SMALL_INTRON
 The LoF falls in a splice site of a small (biologically unlikely; default < 15 bp) intron.
-
-- NON\_CAN_SPLICE
-The LoF is a splice variant that falls in a non-canonical splice site (not GT..AG).
 
 - ANC_ALLELE
 The alternate allele of the LoF reverts the sequence back to the ancestral state.
@@ -319,6 +311,9 @@ A splice donor-disrupting variant (either essential or extended with sufficient 
 
 - RESCUE_ACCEPTOR
 Ditto for splice acceptor-disrupting variants.
+
+- GC_TO_GT_DONOR
+Essential donor splice variant creates a more canonical splice site (strengthening the site if anything, thus unlikely to disrupt splicing).
 
 - 5UTR_SPLICE and 3UTR_SPLICE
 Essential splice variant LoF occurs in the UTR of the transcript.
@@ -337,7 +332,7 @@ The LoF falls in an exon that does not exhibit a pattern of conservation typical
 - PHYLOCSF_UNLIKELY_ORF
 The LoF falls in an exon that exhibits a pattern of conservation typical of a protein-coding exon, but the reading frame is likely offset.
 
-- PHYLOCSF_TOO_SHORT
-The LoF falls in an exon that was too short to determine conservation status.
+- NON\_CAN_SPLICE
+The LoF is a splice variant that falls in a non-canonical splice site (not GT..AG).
 
 Special thanks to Monkol Lek for the initial implementation of the software and developing many of these filters.
