@@ -35,9 +35,9 @@ sub get_gerp_weighted_dist {
         # determine if last exon by checking if exon spans stop codon position
         my $last_exon = 0;
         if ($strand == 1) {
-            $last_exon = ($current_exon->start < $stop_codon_pos) && ($current_exon->end >= $stop_codon_pos);
+            $last_exon = ($current_exon->start <= $stop_codon_pos) && ($current_exon->end >= $stop_codon_pos);
         } else {
-            $last_exon = ($current_exon->end > $stop_codon_pos) && ($current_exon->start <= $stop_codon_pos);
+            $last_exon = ($current_exon->end >= $stop_codon_pos) && ($current_exon->start <= $stop_codon_pos);
         }
 
         # get contribution of current exon to total weighted distance
