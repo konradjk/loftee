@@ -58,9 +58,11 @@ LOFTEE also uses an SVM model to predict variants that cause LoF by creating de 
 
 -   VEP
 -   >= Perl 5.10.1
--   Ancestral sequence (human\_ancestor.fa[.gz|.rz])
 -   Samtools (must be on path)
--   PhyloCSF database (phylocsf.sql) for conservation filters
+-   Additional data files (for more details, see below)
+    -   GERP scores bigwig (required)
+    -   Ancestral sequence
+    -   PhyloCSF database
 
 ## Usage
 
@@ -80,32 +82,40 @@ Options:
 
 Path to loftee directory. Default is the current working directory. **Note: Your PERL5LIB should also contain this path.**
 
--   `min_intron_size`
+-   `gerp_bigwig`
 
-Minimum intron size, below which a variant should be filtered.
-
--   `fast_length_calculation`
-
-The Ensembl API can be used to calculate transcript length in two different methods: one approximate (fast; usually within 3 bp of correct length) and one perfect (slow). Default: fast.
+Location of GERP bigwig file. Available for download for [GRCh38](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/gerp_conservation_scores.homo_sapiens.GRCh38.bw).
 
 -   `human_ancestor_fa`
 
-Location of human\_ancestor.fa file (need associated tabix index file),
-available for download here (for samtools 0.1.19 and older):
-[http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz)
-and [http://www.broadinstitute.org/~konradk/loftee/human\_ancestor.fa.rz.fai](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz.fai).
-Courtesy of Javier Herrero and the 1000 Genomes Project
-(source:
-[ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/](ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments/)). samtools 1.x
-uses bgzipped inputs for samtools faidx and downloads are available here:
-[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz),
-[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai),
-[https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi).
-If this flag is set to 'false', the ancestral allele will not be checked and filtered.
+Location of human\_ancestor.fa file (with associated tabix index file). Available for download:
+
+- GRCh38 samtools 1.x
+    - [fa.gz](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/human_ancestor.fa.gz)
+    - [fai](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/human_ancestor.fa.gz.fai)
+    - [gzi](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/human_ancestor.fa.gz.gzi)
+- GRCh37 (for samtools 0.1.19 and older):
+    - [fa.rz](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz)
+    - [fai](http://www.broadinstitute.org/~konradk/loftee/human_ancestor.fa.rz.fai)
+    - Courtesy of Javier Herrero and the 1000 Genomes Project
+([source](http://ftp.1000genomes.ebi.ac.uk/vol1/ftp/phase1/analysis_results/supporting/ancestral_alignments)).
+- GRCh37 samtools 1.x uses bgzipped inputs for samtools faidx:
+    - [fa.gz](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz)
+    - [fai](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.fai)
+    - [gzi](https://s3.amazonaws.com/bcbio_nextgen/human_ancestor.fa.gz.gzi)
+    - Courtesy of BCBio
+
+If this flag is not provided (or set to 'false'), the ancestral allele will not be checked and filtered.
 
 -   `conservation_file`
 
-The required SQL database (gzip) can be downloaded [here](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz).
+Location of file with PhyloCSF metrics:
+
+- GRCh38:
+    - The required SQL database (gzipped) can be downloaded [here](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/loftee.sql.gz).
+    
+- GRCh37:
+    - The required SQL database (gzipped) can be downloaded [here](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/phylocsf_gerp.sql.gz).
 Alternatively, this can be loaded into MySQL by downloading the source file [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data.tsv.gz)
 and loaded into MySQL with the schema available [here](https://www.broadinstitute.org/~konradk/loftee/phylocsf_data_schema.sql). This route requires an additional load of the GERP [base](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/GERP_scores.final.sorted.txt.gz) and [exon](https://personal.broadinstitute.org/konradk/loftee_data/GRCh37/GERP_scores.exons.txt.gz) files into the same database of `gerp_bases` and `gerp_exons` repsectively.
 You will then need to create a \[loftee\] entry in your `~/.my.cnf` (creating one if it does not exist) that looks like:
@@ -117,6 +127,16 @@ user=your_mysql_user
 password=your_mysql_pass
 database=your_mysql_db
 </pre>
+
+If this flag not provided (or set to 'false'), the ancestral allele will not be checked and filtered.
+
+-   `min_intron_size`
+
+Minimum intron size, below which a variant should be filtered.
+
+-   `fast_length_calculation`
+
+The Ensembl API can be used to calculate transcript length in two different methods: one approximate (fast; usually within 3 bp of correct length) and one perfect (slow). Default: fast.
 
 -   `check_complete_cds`
 
