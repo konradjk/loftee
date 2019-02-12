@@ -47,7 +47,7 @@ chmod u+s /vep
 cat >/vep.sh <<EOF
 #!/bin/bash
 
-docker run -i -v /vep_data:/root/.vep:ro -v /vep_data/LoF.pm:/vep/loftee/LoF.pm ${VEP_DOCKER_IMAGE} \
+docker run -i -v /vep_data:/root/.vep:ro ${VEP_DOCKER_IMAGE} \
   perl /vep/ensembl-tools-release-85/scripts/variant_effect_predictor/variant_effect_predictor.pl \
   "\$@"
 EOF
