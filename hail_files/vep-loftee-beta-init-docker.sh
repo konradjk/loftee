@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export ASSEMBLY=GRCh37
-export VEP_DOCKER_IMAGE=konradjk/vep85_loftee_beta:1.0.1
+export VEP_DOCKER_IMAGE=konradjk/vep85_loftee:1.0.1
 
 mkdir -p /vep_data/loftee_data
 mkdir -p /vep_data/homo_sapiens
