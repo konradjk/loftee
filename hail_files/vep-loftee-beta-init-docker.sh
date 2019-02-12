@@ -1,7 +1,7 @@
 #!/bin/bash
 
 export ASSEMBLY=GRCh37
-export VEP_DOCKER_IMAGE=konradjk/vep85_loftee_beta:0.1
+export VEP_DOCKER_IMAGE=konradjk/vep85_loftee_beta:1.0.1
 
 mkdir -p /vep_data/loftee_data
 mkdir -p /vep_data/homo_sapiens
@@ -44,8 +44,6 @@ EOF
 gcc -Wall -Werror -O2 /vep.c -o /vep
 chmod u+s /vep
 
-gsutil cp gs://hail-common/vep/vep/loftee-beta/GRCh37/LoF.pm /vep_data/
-
 cat >/vep.sh <<EOF
 #!/bin/bash
 
@@ -58,7 +56,7 @@ chmod +x /vep.sh
 # Run VEP on the 1-variant VCF to create fasta.index file -- caution do not make fasta.index file writeable afterwards!
 gsutil cp gs://hail-common/vep/vep/loftee-beta/GRCh37/1var.vcf file:///1var.vcf
 
-cat /1var.vcf | docker run -i -v /vep_data:/root/.vep -v /vep_data/LoF.pm:/vep/loftee/LoF.pm \
+cat /1var.vcf | docker run -i -v /vep_data:/root/.vep \
     ${VEP_DOCKER_IMAGE} \
     perl /vep/ensembl-tools-release-85/scripts/variant_effect_predictor/variant_effect_predictor.pl \
     --format vcf \
