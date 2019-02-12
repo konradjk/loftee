@@ -77,6 +77,7 @@ sub new {
     $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
     $self->{use_gerp_end_trunc} = 0 if !defined($self->{check_complete_cds});
+    $self->{skip_lof_info} = 'false' if !defined($self->{skip_lof_info});
     
     # general splice prediction parameters
     $self->{loftee_path} = '/vep/loftee/' if !defined($self->{loftee_path});
@@ -238,7 +239,7 @@ sub run {
     } else {
         if ($self->{apply_all} eq 'false') {
             my $output_hash = {};
-            if (scalar @info > 0) {
+            if (scalar @info > 0 && !$self->{skip_lof_info}) {
                 $output_hash->{'LoF_info'} = join(',', @info)
             }
             return $output_hash;
@@ -329,7 +330,7 @@ sub run {
     if (scalar @flags > 0) {
         $output_hash->{'LoF_flags'} = join(',', @flags);
     }
-    if (scalar @info > 0) {
+    if (scalar @info > 0 && !$self->{skip_lof_info}) {
         $output_hash->{'LoF_info'} = join(',', @info);
     }
 
