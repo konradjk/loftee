@@ -77,7 +77,7 @@ sub new {
     $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
     $self->{use_gerp_end_trunc} = 0 if !defined($self->{check_complete_cds});
-    $self->{skip_lof_info} = 'false' if !defined($self->{skip_lof_info});
+    $self->{skip_lof_info} = 0 if !defined($self->{skip_lof_info});
     
     # general splice prediction parameters
     $self->{loftee_path} = '/vep/loftee/' if !defined($self->{loftee_path});
