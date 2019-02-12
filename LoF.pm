@@ -71,13 +71,14 @@ sub new {
         }
     }
     # general LOFTEE parameters
-    # $self->{filter_position} = 0.05 if !defined($self->{filter_position});
     $self->{min_intron_size} = 15 if !defined($self->{min_intron_size});
     $self->{fast_length_calculation} = 'fast' if !defined($self->{fast_length_calculation});
-    $self->{human_ancestor_fa} = 'human_ancestor.fa.rz' if !defined($self->{human_ancestor_fa});
+    $self->{human_ancestor_fa} = 'false' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
-    $self->{use_gerp_end_trunc} = 0 if !defined($self->{check_complete_cds});
-    
+    $self->{gerp_end_trunc_cutoff} = 180 if !defined($self->{gerp_end_trunc_cutoff});
+    $self->{use_gerp_end_trunc} = 'true' if !defined($self->{use_gerp_end_trunc});
+    $self->{filter_position} = 0.05 if !defined($self->{filter_position});
+
     # general splice prediction parameters
     $self->{loftee_path} = '/vep/loftee/' if !defined($self->{loftee_path});
     $self->{get_splice_features} = 1 if !defined($self->{get_splice_features});
@@ -125,21 +126,7 @@ sub new {
         }
     }
     # parameters for GERP-based filters
-    $self->{tabix_path} = 'tabix' if !defined($self->{tabix_path});
-    $self->{gerp_database} = 'false';
-    $self->{gerp_file} = '/vep/loftee/GERP_scores.final.sorted.txt.gz' if !defined($self->{gerp_file});
-    if (defined($self->{gerp_file})) {
-        if ($self->{gerp_file} eq 'mysql') {
-            my $db_info = "DBI:mysql:mysql_read_default_group=loftee;mysql_read_default_file=~/.my.cnf";
-            $self->{gerp_database} = DBI->connect($db_info, undef, undef) or die "Cannot connect to mysql using " . $db_info . "\n";
-        } else {
-            if (`$self->{tabix_path} -l $self->{gerp_file} 2>&1` =~ "fail") {
-                die "Cannot read " . $self->{gerp_file} . " using " . $self->{tabix_path};
-            } else {
-                $self->{gerp_database} = $self->{tabix_path} . " " . $self->{gerp_file};
-            }
-        }
-    }
+    $self->{gerp_bigwig} = $self->{loftee_path} . 'gerp_conservation_scores.homo_sapiens.GRCh38.bw' if !defined($self->{gerp_bigwig});
     $self->{apply_all} = $self->{apply_all} || 'false';
     $debug = $self->{debug} || 0;
     
@@ -248,21 +235,23 @@ sub run {
     # filter LoF variants occurring near the reference stop codon
     if ($other_lof && $tv->cds_end) {
         my $lof_percentile = get_position($tv, $self->{fast_length_calculation});
-        # push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
-
-        # using distance from stop codon weighted by GERP
-        my $slice = $vf->feature_Slice();
-        $lof_position = $slice->start if $lof_position < 0;
-        my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{gerp_database}, $self->{conservation_database});
-        push(@info, 'GERP_DIST:' . $gerp_dist);
-        push(@info, 'BP_DIST:' . $dist);
         push(@info, 'PERCENTILE:' . $lof_percentile);
+        unless ($self->{use_gerp_end_trunc}) {
+            push(@filters, 'END_TRUNC') if ($lof_percentile >= 1-$self->{filter_position});
+        } else {
+            # using distance from stop codon weighted by GERP
+            my $slice = $vf->feature_Slice();
+            $lof_position = $slice->start if $lof_position < 0;
+            my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{gerp_bigwig});
+            push(@info, 'GERP_DIST:' . $gerp_dist);
+            push(@info, 'BP_DIST:' . $dist);
 
-        my $last_exon_length = get_last_exon_coding_length($tv);
-        my $d = $dist - $last_exon_length;
-        push(@info, 'DIST_FROM_LAST_EXON:' . $d);
-        push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
-        push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= 180);
+            my $last_exon_length = get_last_exon_coding_length($tv);
+            my $d = $dist - $last_exon_length;
+            push(@info, 'DIST_FROM_LAST_EXON:' . $d);
+            push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
+            push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= $self->{gerp_end_trunc_cutoff});
+        }
     }
 
     # Filter out - exonic
@@ -560,7 +549,7 @@ sub check_for_conservation {
     my $transcript_id = $transcript_variation_allele->transcript_variation->transcript->stable_id();
     my ($exon_number, $total_exons) = split /\//, ($transcript_variation->exon_number);
     # Check if exon is conserved
-    my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_data WHERE transcript = ? AND exon_number = ?;");
+    my $sql_statement = $conservation_db->prepare("SELECT * FROM phylocsf_summary WHERE transcript = ? AND exon = ?;");
     $sql_statement->execute($transcript_id, $exon_number) or die("MySQL ERROR: $!");
     my $results = $sql_statement->fetchrow_hashref;
     $sql_statement->finish();

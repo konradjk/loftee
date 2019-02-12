@@ -1,7 +1,8 @@
 use strict;
+use Bio::DB::BigWig 'binMean';
 
 sub get_gerp_weighted_dist {
-    my ($tr, $pos, $gerp_db, $cons_db) = @_[0..3];
+    my ($tr, $pos, $bigwig_file) = @_[0..2];
 
     # collect some variables
     my $chr = $tr->seq_region_name();
@@ -50,17 +51,16 @@ sub get_gerp_weighted_dist {
                 $start = ($strand == 1) ? $current_exon->start : $current_exon->end;
             }
             $end = $stop_codon_pos;
-            $wd = get_interval_gerp($chr, $start, $end, $gerp_db);
         } elsif ($in_affected_exon) {
             $start = $pos;
             $end = ($strand == 1) ? $current_exon->{end} : $current_exon->{start};
-            $wd = get_interval_gerp($chr, $start, $end, $gerp_db);
         } else {
-            my $exon_num = $i + 1;
-            $wd = get_exon_gerp($transcript_id, $exon_num, $cons_db);
+            # my $exon_num = $i + 1;
+            # $wd = get_exon_gerp($transcript_id, $exon_num, $cons_db);
             $start = $current_exon->start;
             $end = $current_exon->end;
         }
+        $wd = get_interval_gerp($chr, $start, $end, $bigwig_file);
         $weighted_dist = $weighted_dist + $wd;
         $dist = $dist + (abs ($end - $start));
     }
@@ -68,69 +68,15 @@ sub get_gerp_weighted_dist {
 }
 
 sub get_interval_gerp {
-    my ($chrom, $a, $b, $gerp_db) = @_[0..3];
-    if ($gerp_db =~ 'tabix') {
-        return (get_interval_gerp_tabix($chrom, $a, $b, $gerp_db));
-    } else {
-        return (get_interval_gerp_db($chrom, $a, $b, $gerp_db));
+    my ($chrom, $a, $b, $bigwig_file) = @_[0..3];
+    my $wig = Bio::DB::BigWig->new(-bigwig=>$bigwig_file);
+    my @feats = $wig->features(-type=>'summary', -seq_id=>$chrom, -start=>$a, -end=>$b);
+    my $total = 0;
+    # TODO: check 0 vs 1 indexing
+    for my $c (@feats) {
+        $total += $c->length * binMean($c->score());
     }
-}
-
-sub get_interval_gerp_db {
-    my ($chrom, $a, $b, $gerp_db) = @_[0..3];
-    if ($a > $b) { my $tmp = $a; $a = $b; $b = $tmp; }
-    my $sql_query = $gerp_db->prepare("SELECT sum(gerp) as gerp FROM gerp_bases where chrom = ? AND pos >= ? AND pos <= ?;");
-    $sql_query->execute($chrom, $a, $b) or die("MySQL ERROR: $!");
-    my $results = $sql_query->fetchrow_hashref;
-    $sql_query->finish();
-    return ($results->{gerp});
-}
-
-sub get_interval_gerp_tabix {
-    my ($chrom, $a, $b, $gerp_db) = @_[0..3];
-    if ($a > $b) { my $tmp = $a; $a = $b; $b = $tmp; }
-    my @results = split /\n/, `$gerp_db $chrom:$a-$b 2>&1`;
-    my $gerp = 0;
-    for my $row (@results) {
-        my @res = split /\t/, $row;
-        $gerp += $res[2];
-    }
-    return ($gerp);
-}
-
-sub get_bp_gerp {
-    my ($chrom, $pos, $gerp_db) = @_[0..3];
-    if ($gerp_db =~ 'tabix') {
-        return (get_bp_gerp_tabix($chrom, $pos, $gerp_db));
-    } else {
-        return (get_bp_gerp_db($chrom, $pos, $gerp_db));
-    }
-}
-sub get_bp_gerp_db {
-    my ($chrom, $pos, $gerp_db) = @_[0..2];
-    my $sql_query = $gerp_db->prepare("SELECT * FROM gerp_bases where chrom = ? AND pos = ?;");
-    $sql_query->execute($chrom, $pos) or die("MySQL ERROR: $!");
-    my $results = $sql_query->fetchrow_hashref;
-    $sql_query->finish();
-    return ($results->{gerp});
-}
-sub get_bp_gerp_tabix {
-    my ($chrom, $pos, $gerp_db) = @_[0..2];
-    my $res = `$gerp_db $chrom:$pos-$pos 2>&1`;
-    my @results = split /\t/, $res;
-    return ($results[2]);
-}
-
-
-sub get_exon_gerp {
-    my $transcript_id = shift;
-    my $exon_number = shift;
-    my $gerp_db = shift;
-    my $sql_query = $gerp_db->prepare("SELECT * FROM gerp_exons where transcript_id = ? AND exon_num = ?; ");
-    $sql_query->execute($transcript_id, $exon_number) or die("MySQL ERROR: $!");
-    my $results = $sql_query->fetchrow_hashref;
-    $sql_query->finish();
-    return ($results->{gerp});
+    return ($total);
 }
 
 1;
