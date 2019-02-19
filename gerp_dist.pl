@@ -72,7 +72,6 @@ sub get_interval_gerp {
     my $wig = Bio::DB::BigWig->new(-bigwig=>$bigwig_file);
     my @feats = $wig->features(-type=>'summary', -seq_id=>$chrom, -start=>$a, -end=>$b);
     my $total = 0;
-    # TODO: check 0 vs 1 indexing
     for my $c (@feats) {
         $total += $c->length * binMean($c->score());
     }

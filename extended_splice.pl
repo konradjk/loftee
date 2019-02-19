@@ -125,7 +125,7 @@ sub get_effect_on_splice {
     if ($cache->{conservation_file} ne 'false') {
         my @pos = get_mutated_bases($wt, $var, $splice_lb, $splice_rb, $strand, $delta);
         my $chrom = $tv->transcript->seq_region_name();
-        my @lgerp = map { get_bp_gerp($chrom, $_, $cache->{gerp_database}) } @pos;
+        my @lgerp = map { get_interval_gerp($chrom, $_, $_, $cache->{gerp_database}) } @pos;
         $gerp_diff = (scalar @lgerp > 0) ? sum(@lgerp) : 0;
     }
 
