@@ -75,7 +75,7 @@ sub new {
     $self->{fast_length_calculation} = 'fast' if !defined($self->{fast_length_calculation});
     $self->{human_ancestor_fa} = 'false' if !defined($self->{human_ancestor_fa});
     $self->{check_complete_cds} = 'false' if !defined($self->{check_complete_cds});
-    $self->{gerp_end_trunc_cutoff} = 180 if !defined($self->{gerp_end_trunc_cutoff});
+    $self->{gerp_end_trunc_cutoff} = -58 if !defined($self->{gerp_end_trunc_cutoff});
     $self->{use_gerp_end_trunc} = 'true' if !defined($self->{use_gerp_end_trunc});
     $self->{filter_position} = 0.05 if !defined($self->{filter_position});
 
