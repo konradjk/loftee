@@ -109,7 +109,7 @@ If this flag is not provided (or set to 'false'), the ancestral allele will not 
 
 -   `conservation_file`
 
-Location of file with PhyloCSF metrics:
+Location of file with PhyloCSF metrics (make sure these are unzipped locally before use!):
 
 - GRCh38:
     - The required SQL database (gzipped) can be downloaded [here](https://personal.broadinstitute.org/konradk/loftee_data/GRCh38/loftee.sql.gz).
