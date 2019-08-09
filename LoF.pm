@@ -95,7 +95,7 @@ sub new {
     $self->{seq} = \%seq;
 
     # extended splice parameters
-    $self->{run_splice_predictions} = 0 if !defined($self->{donor_disruption_mes_cutoff});
+    $self->{run_splice_predictions} = 0 if !defined($self->{run_splice_predictions});
     $self->{donor_disruption_mes_cutoff} = 6 if !defined($self->{donor_disruption_mes_cutoff}); # minimum magnitude of MES disruption to be considered splice-disrupting
     $self->{acceptor_disruption_mes_cutoff} = 7 if !defined($self->{acceptor_disruption_mes_cutoff});
     $self->{donor_disruption_cutoff} = 0.98 if !defined($self->{donor_disruption_cutoff});
