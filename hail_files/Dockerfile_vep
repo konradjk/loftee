@@ -53,3 +53,5 @@ RUN echo "perl /vep/ensembl-tools-release-$VEP_VERSION/scripts/variant_effect_pr
 ENV PERL5LIB "${PERL5LIB}:/vep/loftee"
 
 RUN git clone -b v1.0.2 https://github.com/konradjk/loftee.git
+
+RUN apt-get -y install samtools
