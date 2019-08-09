@@ -95,6 +95,7 @@ sub new {
     $self->{seq} = \%seq;
 
     # extended splice parameters
+    $self->{run_splice_predictions} = 1 if !defined($self->{run_splice_predictions});
     $self->{donor_disruption_mes_cutoff} = 6 if !defined($self->{donor_disruption_mes_cutoff}); # minimum magnitude of MES disruption to be considered splice-disrupting
     $self->{acceptor_disruption_mes_cutoff} = 7 if !defined($self->{acceptor_disruption_mes_cutoff});
     $self->{donor_disruption_cutoff} = 0.98 if !defined($self->{donor_disruption_cutoff});
@@ -182,7 +183,7 @@ sub run {
     my $lof_position = -1;
 
     # splice predictions
-    if ($genic_variant && !($UTR_variant || $other_lof)) {
+    if ($self->{run_splice_predictions} && ($genic_variant && !($UTR_variant || $other_lof))) {
         # extended splice - predict whether variant disrupts an annotated splice site
         my @results = get_effect_on_splice($tv, $vf, $allele, $vep_splice_lof, $self);
         my ($splice_disrupting, $feats, $splice_info) = @results;
