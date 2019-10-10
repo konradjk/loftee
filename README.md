@@ -57,7 +57,7 @@ LOFTEE also uses an SVM model to predict variants that cause LoF by creating de 
 ## Requirements
 
 -   VEP
--   >= Perl 5.10.1
+-   Perl >= 5.10.1
 -   Ancestral sequence (human\_ancestor.fa[.gz|.rz])
 -   Samtools (must be on path)
 -   PhyloCSF database (phylocsf.sql) for conservation filters
