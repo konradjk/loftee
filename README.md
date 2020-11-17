@@ -336,3 +336,7 @@ The LoF falls in an exon that exhibits a pattern of conservation typical of a pr
 The LoF is a splice variant that falls in a non-canonical splice site (not GT..AG).
 
 Special thanks to Monkol Lek for the initial implementation of the software and developing many of these filters.
+
+## Citing LOFTEE
+
+To cite loftee, please use the citation: [Karczewski et al., 2020](https://www.nature.com/articles/s41586-020-2308-7).
