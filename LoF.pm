@@ -246,12 +246,15 @@ sub run {
             my ($gerp_dist, $dist) = get_gerp_weighted_dist($tv->transcript, $lof_position, $self->{gerp_bigwig});
             push(@info, 'GERP_DIST:' . $gerp_dist);
             push(@info, 'BP_DIST:' . $dist);
-
-            my $last_exon_length = get_last_exon_coding_length($tv);
-            my $d = $dist - $last_exon_length;
-            push(@info, 'DIST_FROM_LAST_EXON:' . $d);
-            push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
-            push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= $self->{gerp_end_trunc_cutoff});
+            if ($tv->exon_number) {
+                my $last_exon_length = get_last_exon_coding_length($tv);
+                my $d = $dist - $last_exon_length;
+                push(@info, 'DIST_FROM_LAST_EXON:' . $d);
+                push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
+                push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= $self->{gerp_end_trunc_cutoff});
+            } else {
+                push(@flags, 'NO_EXON_NUMBER');
+            }
         }
     }
 
