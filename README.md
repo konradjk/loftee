@@ -40,6 +40,7 @@ For stop-gained and frameshift variants, LOFTEE flags:
 
 -   Variants in genes with only a single exon
 -   Variants in exons that do not have the evolutionary signature of a protein-coding gene based on PhyloCSF
+-   Variants where no exon number is indicated (apparently because the variant overlaps an intron)
 
 For splice-site variants, LOFTEE flags:
 
