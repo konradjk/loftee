@@ -260,11 +260,16 @@ sub run {
         push(@info, 'BP_DIST:' . $dist);
         push(@info, 'PERCENTILE:' . $lof_percentile);
 
-        my $last_exon_length = get_last_exon_coding_length($tv);
-        my $d = $dist - $last_exon_length;
-        push(@info, 'DIST_FROM_LAST_EXON:' . $d);
-        push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
-        push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= 180);
+        if ($tv->exon_number){
+            my $last_exon_length = get_last_exon_coding_length($tv);
+            my $d = $dist - $last_exon_length;
+            push(@info, 'DIST_FROM_LAST_EXON:' . $d);
+            push(@info, '50_BP_RULE:' . ($d <= 50 ? 'FAIL' : 'PASS'));
+            push(@filters, 'END_TRUNC') if ($d <= 50) & ($gerp_dist <= 180);
+        }
+        else {
+            push(@flags, 'NO_EXON_NUMBER');
+        }
     }
 
     # Filter out - exonic
