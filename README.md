@@ -1,6 +1,6 @@
 # LOFTEE (Loss-Of-Function Transcript Effect Estimator)
 
-## Loss-of-function pipeline inspired by MacArthur et al., 2012.
+## Loss-of-function pipeline (inspired by MacArthur et al., 2012, published in Karczewski et al., 2020).
 
 A VEP plugin to identify LoF (loss-of-function) variation.
 
@@ -9,6 +9,8 @@ Currently assesses variants that are:
 -   Stop-gained
 -   Splice site disrupting
 -   Frameshift variants
+
+Note: the master branch does not work with GRCh38. Please use the grch38 branch.
 
 ### Filters
 
