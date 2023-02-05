@@ -27,7 +27,13 @@ use warnings;
 
 use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
 use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
-use Bio::Perl;
+
+BEGIN {
+    unless (eval "use Bio::Perl; 1") {
+        warn "couldn't use Bio::Perl. Trying BioPerl instead...";
+        use BioPerl;
+    }
+}
 
 sub get_header_info {
     return {

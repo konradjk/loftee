@@ -43,7 +43,12 @@ use Bio::EnsEMBL::Variation::Utils::BaseVepPlugin;
 use DBI;
 
 use base qw(Bio::EnsEMBL::Variation::Utils::BaseVepPlugin);
-use Bio::Perl;
+BEGIN {
+    unless (eval "use Bio::Perl; 1") {
+        warn "couldn't use Bio::Perl. Trying BioPerl instead...";
+        use BioPerl;
+    }
+}
 use List::Util qw(sum);
 
 sub get_header_info {
