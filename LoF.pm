@@ -127,7 +127,7 @@ sub new {
         }
     }
     # parameters for GERP-based filters
-    $self->{gerp_bigwig} = $self->{loftee_path} . 'gerp_conservation_scores.homo_sapiens.GRCh38.bw' if !defined($self->{gerp_bigwig});
+    $self->{gerp_bigwig} = catdir($self->{loftee_path}, 'gerp_conservation_scores.homo_sapiens.GRCh38.bw') if !defined($self->{gerp_bigwig});
     $self->{apply_all} = $self->{apply_all} || 'false';
     $debug = $self->{debug} || 0;
     
